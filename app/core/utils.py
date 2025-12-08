@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import numpy as np
 from astropy.units import Quantity, Unit
 from poliastro.bodies import (
@@ -14,6 +16,7 @@ from poliastro.bodies import (
     Uranus,
     Venus,
 )
+from sgp4.api import jday
 
 
 def body_from_str(planet: str | Body) -> Body:
@@ -151,3 +154,31 @@ def non_quantity_to_Quantity(
     if isinstance(value, list):
         value = np.array(value)
     return Quantity(value, unit)
+
+
+def datetime_to_jd(dt: datetime) -> tuple[float, float, float]:
+    """
+    Convert a datetime object to Julian Date.
+
+    Parameters
+    ----------
+    dt : datetime
+        Datetime object to convert.
+
+    Returns
+    -------
+    tuple[float, float, float]
+        - Julian Date (float).
+        - Whole part of the Julian Date (float).
+        - Fractional part of the Julian Date (float).
+
+    Notes
+    -----
+    - The function uses the SGP4 library's `jday` function for conversion.
+    - The input datetime object must be timezone-aware.
+    """
+    whole_part, frac_part = jday(
+        dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
+    )
+    julian_day = whole_part + frac_part
+    return julian_day, whole_part, frac_part

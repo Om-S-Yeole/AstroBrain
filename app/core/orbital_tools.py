@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from math import pi, sqrt
 
 import numpy as np
 from astropy import units as u
@@ -9,8 +10,9 @@ from poliastro.iod.vallado import lambert
 from poliastro.maneuver import Maneuver
 from poliastro.twobody import Orbit
 from poliastro.twobody.propagation import ValladoPropagator
+from sgp4.api import SGP4_ERRORS, Satrec
 
-from app.core import body_from_str, non_quantity_to_Quantity
+from app.core import body_from_str, datetime_to_jd, non_quantity_to_Quantity
 
 
 def keplerian_to_cartesian(
@@ -847,3 +849,169 @@ def universal_kepler(
     new_orbit = orbit.propagate(dt, ValladoPropagator(numiter=500))
 
     return new_orbit.r.value, new_orbit.v.value
+
+
+def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
+    """
+    Propagate a satellite orbit using the SGP4 model from TLE data.
+
+    This function uses the Simplified General Perturbations 4 (SGP4) model to propagate
+    a satellite's orbit from Two-Line Element (TLE) set data to a specific date and time.
+    SGP4 is a widely-used analytical propagation model that accounts for perturbations
+    such as Earth's oblateness, atmospheric drag, and solar/lunar gravitational effects.
+
+    Parameters
+    ----------
+    line_1 : str
+        First line of the Two-Line Element (TLE) set. Must be a valid TLE format
+        string containing orbital elements and satellite information.
+    line_2 : str
+        Second line of the Two-Line Element (TLE) set. Must be a valid TLE format
+        string containing additional orbital parameters.
+    at_datetime : str or datetime.datetime
+        The date and time at which to compute the satellite's position and velocity.
+        If string, must be in the format 'YYYY-MM-DD HH:MM:SS'.
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        A tuple containing two numpy arrays:
+        - r : numpy.ndarray
+            Position vector [x, y, z] in kilometers in the TEME (True Equator Mean
+            Equinox) reference frame.
+        - v : numpy.ndarray
+            Velocity vector [vx, vy, vz] in kilometers per second in the TEME
+            reference frame.
+
+    Raises
+    ------
+    TypeError
+        If `line_1` is not a string.
+    TypeError
+        If `line_2` is not a string.
+    TypeError
+        If `at_datetime` is not a string or datetime.datetime object.
+    RuntimeError
+        If SGP4 propagation encounters an error (e.g., decayed satellite, invalid
+        TLE data, or numerical issues).
+
+    Notes
+    -----
+    The SGP4 model is designed for near-Earth satellites and uses mean orbital elements.
+    The output is in the TEME coordinate system, which may need to be converted to
+    other reference frames (e.g., GCRS, ITRS) for some applications.
+
+    TLE data can be obtained from sources such as Space-Track.org, CelesTrak, or
+    N2YO. TLE elements have limited validity periods and should be updated regularly
+    for accurate predictions.
+
+    Examples
+    --------
+    >>> from datetime import datetime
+    >>> # ISS TLE example (fictional values for demonstration)
+    >>> line1 = "1 25544U 98067A   21275.51261574  .00002182  00000-0  41420-4 0  9990"
+    >>> line2 = "2 25544  51.6461 339.8014 0003045  24.8134  62.5806 15.48919393304228"
+    >>> target_time = "2021-10-02 12:00:00"
+    >>> r, v = sgp4_propagate(line1, line2, target_time)
+    >>> print(f"Position: {r} km")
+    >>> print(f"Velocity: {v} km/s")
+
+    >>> # Using datetime object
+    >>> target_time = datetime(2021, 10, 2, 12, 0, 0)
+    >>> r, v = sgp4_propagate(line1, line2, target_time)
+
+    >>> # Get current position of a satellite
+    >>> from datetime import datetime
+    >>> now = datetime.utcnow()
+    >>> r, v = sgp4_propagate(line1, line2, now)
+    """
+    if not isinstance(line_1, str):
+        raise TypeError(f"Expected type of line_1 is str. Got {type(line_1)}.")
+    if not isinstance(line_2, str):
+        raise TypeError(f"Expected type of line_2 is str. Got {type(line_2)}.")
+    if not isinstance(at_datetime, (str, datetime)):
+        raise TypeError(
+            f"Expected type of at_datetime is str or datetime. Got {type(at_datetime)}."
+        )
+
+    if isinstance(at_datetime, str):
+        at_datetime = datetime.strptime(at_datetime, format="%Y-%m-%d %H:%M:%S")
+
+    _, whole_part, frac_part = datetime_to_jd(at_datetime)
+
+    satellite = Satrec.twoline2rv(line_1, line_2)
+    e, r, v = satellite.sgp4(whole_part, frac_part)
+
+    if e != 0:
+        raise RuntimeError(f"Error in SGP4 propagation. {SGP4_ERRORS[f'{e}']}")
+    else:
+        return np.array(r), np.array(v)
+
+
+def orbit_period(a: int | float, mu: int | float) -> float:
+    """
+    Calculate the orbital period of a two-body orbit.
+
+    This function computes the orbital period using Kepler's Third Law, which relates
+    the period of an orbit to its semi-major axis and the gravitational parameter of
+    the central body. This applies to elliptical, circular, and parabolic orbits.
+
+    Parameters
+    ----------
+    a : int or float
+        Semi-major axis of the orbit in kilometers.
+    mu : int or float
+        Standard gravitational parameter (GM) of the central body in km³/s².
+        For Earth, μ ≈ 398600.4418 km³/s².
+
+    Returns
+    -------
+    float
+        The orbital period in seconds.
+
+    Raises
+    ------
+    TypeError
+        If `a` is not an int or float.
+    TypeError
+        If `mu` is not an int or float.
+
+    Notes
+    -----
+    The orbital period is calculated using Kepler's Third Law:
+
+    .. math::
+        T = 2\\pi \\sqrt{\\frac{a^3}{\\mu}}
+
+    where T is the period, a is the semi-major axis, and μ is the gravitational
+    parameter of the central body.
+
+    This formula is valid for all conic section orbits (elliptical and circular).
+    For parabolic and hyperbolic orbits (e ≥ 1), the concept of period is not
+    physically meaningful.
+
+    Examples
+    --------
+    >>> # Calculate period of a circular orbit at 400 km altitude above Earth
+    >>> a = 6378 + 400  # Earth radius + altitude in km
+    >>> mu_earth = 398600.4418  # km³/s²
+    >>> T = orbit_period(a, mu_earth)
+    >>> print(f"Orbital period: {T:.2f} seconds")
+    >>> print(f"Orbital period: {T/60:.2f} minutes")
+
+    >>> # ISS orbit (approximately)
+    >>> a_iss = 6778.0  # km
+    >>> T_iss = orbit_period(a_iss, 398600.4418)
+    >>> print(f"ISS period: {T_iss/60:.2f} minutes")
+
+    >>> # Geostationary orbit
+    >>> a_geo = 42164.0  # km
+    >>> T_geo = orbit_period(a_geo, 398600.4418)
+    >>> print(f"GEO period: {T_geo/3600:.2f} hours")
+    """
+    if not isinstance(a, (int, float)):
+        raise TypeError(f"Expected type of a is int or float. Got {type(a)}.")
+    if not isinstance(mu, (int, float)):
+        raise TypeError(f"Expected type of mu is int or float. Got {type(mu)}.")
+
+    return 2 * pi * sqrt(a**3 / mu)
