@@ -1015,3 +1015,548 @@ def orbit_period(a: int | float, mu: int | float) -> float:
         raise TypeError(f"Expected type of mu is int or float. Got {type(mu)}.")
 
     return 2 * pi * sqrt(a**3 / mu)
+
+
+def mean_motion(a: int | float, mu: int | float) -> float:
+    """
+    Calculate the mean motion of an orbit.
+
+    Mean motion is the angular speed required for a body to complete one orbit,
+    assuming constant speed in a circular orbit (for elliptical orbits, it's the
+    average angular speed). It is derived from Kepler's Third Law.
+
+    Parameters
+    ----------
+    a : int or float
+        Semi-major axis of the orbit in kilometers.
+    mu : int or float
+        Standard gravitational parameter (GM) of the central body in km³/s².
+        For Earth, μ ≈ 398600.4418 km³/s².
+
+    Returns
+    -------
+    float
+        The mean motion in radians per second.
+
+    Raises
+    ------
+    TypeError
+        If `a` is not an int or float.
+    TypeError
+        If `mu` is not an int or float.
+
+    Notes
+    -----
+    The mean motion is calculated using the formula:
+
+    .. math::
+        n = \\sqrt{\\frac{\\mu}{a^3}}
+
+    where n is the mean motion, a is the semi-major axis, and μ is the
+    gravitational parameter.
+
+    Mean motion is related to orbital period by: T = 2π/n
+
+    Examples
+    --------
+    >>> # Calculate mean motion for ISS orbit
+    >>> a_iss = 6778.0  # km
+    >>> mu_earth = 398600.4418  # km³/s²
+    >>> n = mean_motion(a_iss, mu_earth)
+    >>> print(f"Mean motion: {n} rad/s")
+
+    >>> # Calculate period from mean motion
+    >>> from math import pi
+    >>> T = 2 * pi / n
+    >>> print(f"Orbital period: {T/60:.2f} minutes")
+    """
+    if not isinstance(a, (int, float)):
+        raise TypeError(f"Expected type of a is int or float. Got {type(a)}.")
+    if not isinstance(mu, (int, float)):
+        raise TypeError(f"Expected type of mu is int or float. Got {type(mu)}.")
+
+    return sqrt(mu / a**3)
+
+
+def specific_energy(
+    r_vec: list | np.ndarray | Quantity,
+    v_vec: list | np.ndarray | Quantity,
+    attractor: str | Body = Earth,
+) -> float:
+    """
+    Calculate the specific orbital energy (energy per unit mass).
+
+    Specific orbital energy is the total energy (kinetic plus potential) per unit
+    mass of an orbiting body. It is a constant of motion for two-body orbits and
+    determines the orbit's shape and size.
+
+    Parameters
+    ----------
+    r_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Position vector [x, y, z]. If list or ndarray, assumed to be in kilometers.
+        Must be a 3-element vector.
+    v_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Velocity vector [vx, vy, vz]. If list or ndarray, assumed to be in
+        kilometers per second. Must be a 3-element vector.
+    attractor : str or poliastro.bodies.Body, optional
+        The central body around which the orbit is defined. Can be a string name
+        (e.g., 'earth', 'mars') or a poliastro Body object. Default is Earth.
+
+    Returns
+    -------
+    float
+        The specific orbital energy in km²/s².
+
+    Raises
+    ------
+    TypeError
+        If `r_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `v_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `attractor` is not a string or poliastro.bodies.Body object.
+
+    Notes
+    -----
+    The specific orbital energy is calculated using:
+
+    .. math::
+        \\epsilon = \\frac{v^2}{2} - \\frac{\\mu}{r}
+
+    where v is the velocity magnitude, r is the position magnitude, and μ is the
+    gravitational parameter.
+
+    For different orbit types:
+    - ε < 0: Elliptical orbit (bound)
+    - ε = 0: Parabolic orbit (escape trajectory)
+    - ε > 0: Hyperbolic orbit (unbound)
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Calculate energy for a circular LEO orbit
+    >>> r = np.array([7000.0, 0.0, 0.0])  # km
+    >>> v = np.array([0.0, 7.546, 0.0])  # km/s
+    >>> energy = specific_energy(r, v, attractor='earth')
+    >>> print(f"Specific energy: {energy} km²/s²")
+    """
+    if not isinstance(r_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of r_vec is either list or ndarray or Quantity. Got {type(r_vec)}"
+        )
+    if not isinstance(v_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
+        )
+    if not isinstance(attractor, (str, Body)):
+        raise TypeError(
+            f"Expected type of attractor is either str or poliastro.bodies.Body. Got {type(attractor)}."
+        )
+
+    attractor = body_from_str(attractor)
+    r_vec = non_quantity_to_Quantity(r_vec, u.km)
+    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+
+    orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
+
+    return orbit.energy().value
+
+
+def specific_angular_momentum(
+    r_vec: list | np.ndarray | Quantity, v_vec: list | np.ndarray | Quantity
+) -> float:
+    """
+    Calculate the specific angular momentum vector of an orbit.
+
+    Specific angular momentum (h = r × v) is the angular momentum per unit mass.
+    It is perpendicular to the orbital plane and is a constant of motion for
+    two-body orbits. Its magnitude and direction define the orbit's shape and orientation.
+
+    Parameters
+    ----------
+    r_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Position vector [x, y, z]. If list or ndarray, assumed to be in kilometers.
+        Must be a 3-element vector.
+    v_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Velocity vector [vx, vy, vz]. If list or ndarray, assumed to be in
+        kilometers per second. Must be a 3-element vector.
+
+    Returns
+    -------
+    numpy.ndarray or astropy.units.Quantity
+        The specific angular momentum vector [hx, hy, hz] in km²/s.
+
+    Raises
+    ------
+    TypeError
+        If `r_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `v_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+
+    Notes
+    -----
+    The specific angular momentum is calculated using the cross product:
+
+    .. math::
+        \\vec{h} = \\vec{r} \\times \\vec{v}
+
+    The magnitude of h is related to the orbit's semi-major axis and eccentricity:
+
+    .. math::
+        h = \\sqrt{\\mu a (1 - e^2)}
+
+    The direction of h is perpendicular to the orbital plane, following the
+    right-hand rule.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Calculate angular momentum for a circular orbit
+    >>> r = np.array([7000.0, 0.0, 0.0])  # km
+    >>> v = np.array([0.0, 7.546, 0.0])  # km/s
+    >>> h = specific_angular_momentum(r, v)
+    >>> print(f"Angular momentum: {h} km²/s")
+    >>> print(f"Magnitude: {np.linalg.norm(h):.2f} km²/s")
+    """
+    if not isinstance(r_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of r_vec is either list or ndarray or Quantity. Got {type(r_vec)}"
+        )
+    if not isinstance(v_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
+        )
+
+    r_vec = non_quantity_to_Quantity(r_vec, u.km)
+    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+
+    return np.cross(r_vec, v_vec)
+
+
+def eccentricity_vector(
+    r_vec: list | np.ndarray | Quantity,
+    v_vec: list | np.ndarray | Quantity,
+    attractor: str | Body = Earth,
+) -> np.ndarray:
+    """
+    Calculate the eccentricity vector of an orbit.
+
+    The eccentricity vector points from the focus (central body) toward periapsis
+    (the point of closest approach). Its magnitude is the orbital eccentricity,
+    which describes the shape of the orbit.
+
+    Parameters
+    ----------
+    r_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Position vector [x, y, z]. If list or ndarray, assumed to be in kilometers.
+        Must be a 3-element vector.
+    v_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Velocity vector [vx, vy, vz]. If list or ndarray, assumed to be in
+        kilometers per second. Must be a 3-element vector.
+    attractor : str or poliastro.bodies.Body, optional
+        The central body around which the orbit is defined. Can be a string name
+        (e.g., 'earth', 'mars') or a poliastro Body object. Default is Earth.
+
+    Returns
+    -------
+    numpy.ndarray
+        The eccentricity vector [ex, ey, ez] (dimensionless).
+
+    Raises
+    ------
+    TypeError
+        If `r_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `v_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `attractor` is not a string or poliastro.bodies.Body object.
+
+    Notes
+    -----
+    The eccentricity vector is calculated using:
+
+    .. math::
+        \\vec{e} = \\frac{1}{\\mu}[(v^2 - \\frac{\\mu}{r})\\vec{r} - (\\vec{r} \\cdot \\vec{v})\\vec{v}]
+
+    The magnitude |e| determines the orbit type:
+    - e = 0: Circular orbit
+    - 0 < e < 1: Elliptical orbit
+    - e = 1: Parabolic trajectory
+    - e > 1: Hyperbolic trajectory
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Calculate eccentricity vector for an elliptical orbit
+    >>> r = np.array([7000.0, 0.0, 0.0])  # km
+    >>> v = np.array([0.0, 8.0, 0.0])  # km/s
+    >>> e_vec = eccentricity_vector(r, v, attractor='earth')
+    >>> print(f"Eccentricity vector: {e_vec}")
+    >>> e = np.linalg.norm(e_vec)
+    >>> print(f"Eccentricity: {e:.4f}")
+    """
+    if not isinstance(r_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of r_vec is either list or ndarray or Quantity. Got {type(r_vec)}"
+        )
+    if not isinstance(v_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
+        )
+    if not isinstance(attractor, (str, Body)):
+        raise TypeError(
+            f"Expected type of attractor is either str or poliastro.bodies.Body. Got {type(attractor)}."
+        )
+
+    attractor = body_from_str(attractor)
+    r_vec = non_quantity_to_Quantity(r_vec, u.km)
+    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+
+    orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
+
+    return orbit.e_vec.value
+
+
+def true_anomaly_from_vectors(
+    r_vec: list | np.ndarray | Quantity,
+    v_vec: list | np.ndarray | Quantity,
+    attractor: str | Body = Earth,
+) -> float:
+    """
+    Calculate the true anomaly from position and velocity vectors.
+
+    True anomaly is the angle between the direction of periapsis and the current
+    position of the orbiting body, measured at the focus (central body). It describes
+    the position of the body along its orbit at a given time.
+
+    Parameters
+    ----------
+    r_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Position vector [x, y, z]. If list or ndarray, assumed to be in kilometers.
+        Must be a 3-element vector.
+    v_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Velocity vector [vx, vy, vz]. If list or ndarray, assumed to be in
+        kilometers per second. Must be a 3-element vector.
+    attractor : str or poliastro.bodies.Body, optional
+        The central body around which the orbit is defined. Can be a string name
+        (e.g., 'earth', 'mars') or a poliastro Body object. Default is Earth.
+
+    Returns
+    -------
+    float
+        The true anomaly in degrees, ranging from 0° to 360°.
+
+    Raises
+    ------
+    TypeError
+        If `r_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `v_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `attractor` is not a string or poliastro.bodies.Body object.
+
+    Notes
+    -----
+    True anomaly (ν) is one of the six classical orbital elements. It is calculated
+    from the angle between the eccentricity vector and position vector:
+
+    .. math::
+        \\cos(\\nu) = \\frac{\\vec{e} \\cdot \\vec{r}}{|\\vec{e}| |\\vec{r}|}
+
+    Key positions:
+    - ν = 0°: Periapsis (closest point)
+    - ν = 90°: Quarter orbit after periapsis
+    - ν = 180°: Apoapsis (farthest point)
+    - ν = 270°: Three-quarter orbit
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Calculate true anomaly at different positions
+    >>> r = np.array([7000.0, 0.0, 0.0])  # km
+    >>> v = np.array([0.0, 7.5, 0.0])  # km/s
+    >>> nu = true_anomaly_from_vectors(r, v, attractor='earth')
+    >>> print(f"True anomaly: {nu:.2f} degrees")
+    """
+    if not isinstance(r_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of r_vec is either list or ndarray or Quantity. Got {type(r_vec)}"
+        )
+    if not isinstance(v_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
+        )
+    if not isinstance(attractor, (str, Body)):
+        raise TypeError(
+            f"Expected type of attractor is either str or poliastro.bodies.Body. Got {type(attractor)}."
+        )
+
+    attractor = body_from_str(attractor)
+    r_vec = non_quantity_to_Quantity(r_vec, u.km)
+    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+
+    orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
+
+    return orbit.nu.value
+
+
+def raan_from_vectors(
+    r_vec: list | np.ndarray | Quantity,
+    v_vec: list | np.ndarray | Quantity,
+    attractor: str | Body = Earth,
+) -> float:
+    """
+    Calculate the Right Ascension of the Ascending Node (RAAN) from vectors.
+
+    RAAN (Ω) is the angle from the reference direction (vernal equinox) to the
+    ascending node (where the orbit crosses the equatorial plane from south to north),
+    measured eastward in the equatorial plane. It defines the orientation of the
+    orbital plane in space.
+
+    Parameters
+    ----------
+    r_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Position vector [x, y, z]. If list or ndarray, assumed to be in kilometers.
+        Must be a 3-element vector.
+    v_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Velocity vector [vx, vy, vz]. If list or ndarray, assumed to be in
+        kilometers per second. Must be a 3-element vector.
+    attractor : str or poliastro.bodies.Body, optional
+        The central body around which the orbit is defined. Can be a string name
+        (e.g., 'earth', 'mars') or a poliastro Body object. Default is Earth.
+
+    Returns
+    -------
+    float
+        The RAAN in degrees, ranging from 0° to 360°.
+
+    Raises
+    ------
+    TypeError
+        If `r_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `v_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `attractor` is not a string or poliastro.bodies.Body object.
+
+    Notes
+    -----
+    RAAN is one of the six classical orbital elements. It is calculated from the
+    node vector (n = k × h), which points toward the ascending node:
+
+    .. math::
+        \\Omega = \\arctan2(n_y, n_x)
+
+    where k is the unit vector in the z-direction and h is the angular momentum vector.
+
+    For equatorial orbits (inclination ≈ 0° or 180°), RAAN is undefined or arbitrary.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Calculate RAAN for an inclined orbit
+    >>> r = np.array([5000.0, 3000.0, 2000.0])  # km
+    >>> v = np.array([2.0, 6.0, 4.0])  # km/s
+    >>> raan = raan_from_vectors(r, v, attractor='earth')
+    >>> print(f"RAAN: {raan:.2f} degrees")
+    """
+    if not isinstance(r_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of r_vec is either list or ndarray or Quantity. Got {type(r_vec)}"
+        )
+    if not isinstance(v_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
+        )
+    if not isinstance(attractor, (str, Body)):
+        raise TypeError(
+            f"Expected type of attractor is either str or poliastro.bodies.Body. Got {type(attractor)}."
+        )
+
+    attractor = body_from_str(attractor)
+    r_vec = non_quantity_to_Quantity(r_vec, u.km)
+    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+
+    orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
+
+    return orbit.raan.value
+
+
+def argument_of_periapsis(
+    r_vec: list | np.ndarray | Quantity,
+    v_vec: list | np.ndarray | Quantity,
+    attractor: str | Body = Earth,
+) -> float:
+    """
+    Calculate the argument of periapsis from position and velocity vectors.
+
+    The argument of periapsis (ω) is the angle from the ascending node to periapsis
+    (the point of closest approach), measured in the orbital plane in the direction
+    of motion. It defines the orientation of the ellipse within the orbital plane.
+
+    Parameters
+    ----------
+    r_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Position vector [x, y, z]. If list or ndarray, assumed to be in kilometers.
+        Must be a 3-element vector.
+    v_vec : list, numpy.ndarray, or astropy.units.Quantity
+        Velocity vector [vx, vy, vz]. If list or ndarray, assumed to be in
+        kilometers per second. Must be a 3-element vector.
+    attractor : str or poliastro.bodies.Body, optional
+        The central body around which the orbit is defined. Can be a string name
+        (e.g., 'earth', 'mars') or a poliastro Body object. Default is Earth.
+
+    Returns
+    -------
+    float
+        The argument of periapsis in degrees, ranging from 0° to 360°.
+
+    Raises
+    ------
+    TypeError
+        If `r_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `v_vec` is not a list, numpy.ndarray, or astropy.units.Quantity.
+    TypeError
+        If `attractor` is not a string or poliastro.bodies.Body object.
+
+    Notes
+    -----
+    The argument of periapsis is one of the six classical orbital elements. It is
+    calculated from the angle between the node vector and eccentricity vector:
+
+    .. math::
+        \\omega = \\arccos\\left(\\frac{\\vec{n} \\cdot \\vec{e}}{|\\vec{n}| |\\vec{e}|}\\right)
+
+    For circular orbits (e = 0), the argument of periapsis is undefined.
+    For equatorial orbits (i ≈ 0°), it is measured from the reference direction.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Calculate argument of periapsis for an elliptical orbit
+    >>> r = np.array([7000.0, 0.0, 0.0])  # km
+    >>> v = np.array([0.0, 8.0, 1.0])  # km/s
+    >>> argp = argument_of_periapsis(r, v, attractor='earth')
+    >>> print(f"Argument of periapsis: {argp:.2f} degrees")
+    """
+    if not isinstance(r_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of r_vec is either list or ndarray or Quantity. Got {type(r_vec)}"
+        )
+    if not isinstance(v_vec, (list, np.ndarray, Quantity)):
+        raise TypeError(
+            f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
+        )
+    if not isinstance(attractor, (str, Body)):
+        raise TypeError(
+            f"Expected type of attractor is either str or poliastro.bodies.Body. Got {type(attractor)}."
+        )
+
+    attractor = body_from_str(attractor)
+    r_vec = non_quantity_to_Quantity(r_vec, u.km)
+    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+
+    orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
+
+    return orbit.argp.value
