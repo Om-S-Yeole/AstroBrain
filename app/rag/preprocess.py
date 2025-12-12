@@ -273,7 +273,7 @@ def preprocess_batch(batch: PDFBatch) -> PDFBatch:
     >>> processed['text']
     'Raw text'
     """
-    if not isinstance(batch, PDFBatch):
+    if not isinstance(batch, dict):
         raise TypeError(
             f"Expected type of batch is PDFBatch. See ingest.py file for PDFBatch implementation. Got {type(batch)}."
         )

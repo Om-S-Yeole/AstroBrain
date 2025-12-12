@@ -17,3 +17,9 @@ class MetaDataDict(TypedDict):
 class ChunkDict(TypedDict):
     chunk: str
     metadata: MetaDataDict
+
+
+class VectorPayload(TypedDict):
+    id: str
+    values: list[float]
+    metadata: MetaDataDict
