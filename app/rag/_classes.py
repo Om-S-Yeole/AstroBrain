@@ -1,25 +1,25 @@
-from typing import TypedDict
+from pydantic import BaseModel
 
 
-class PDFBatch(TypedDict):
+class PDFBatch(BaseModel):
     text: str
     page_start: int
     page_end: int
 
 
-class MetaDataDict(TypedDict):
+class MetaDataDict(BaseModel):
     source: str
     page_start: int
     page_end: int
     extra: dict
 
 
-class ChunkDict(TypedDict):
+class ChunkDict(BaseModel):
     chunk: str
     metadata: MetaDataDict
 
 
-class VectorPayload(TypedDict):
+class VectorPayload(BaseModel):
     id: str
     values: list[float]
     metadata: MetaDataDict

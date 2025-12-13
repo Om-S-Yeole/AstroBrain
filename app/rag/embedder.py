@@ -339,7 +339,7 @@ class Embedder:
         return id
 
     def prepare_vector_payload(
-        self, embedding: list[float], metadata: MetaDataDict, vector_id: str
+        self, embedding: list[float], metadata: dict | MetaDataDict, vector_id: str
     ) -> VectorPayload:
         """
         Create a vector payload ready for insertion into a vector database.
@@ -384,10 +384,7 @@ class Embedder:
             raise TypeError(
                 "Expected that embedding is list of float. Got non float element in list."
             )
-        if not isinstance(metadata, dict):
-            raise TypeError(
-                f"Expected type of metadata is dict (MetaDataDict). Got {type(metadata)}"
-            )
+        metadata = MetaDataDict.model_validate(metadata)
         if not isinstance(vector_id, str):
             raise TypeError(
                 f"Expected type of vector_id is str. Got {type(vector_id)}."
@@ -434,10 +431,7 @@ class Embedder:
         >>> 'id' in payload and 'values' in payload and 'metadata' in payload
         True
         """
-        if not isinstance(chunk_dict, dict):
-            raise TypeError(
-                f"Expected type of chunk_dict is ChunkDict. Got {type(chunk_dict)}."
-            )
+        chunk_dict = ChunkDict.model_validate(chunk_dict)
 
         chunk, metadata = chunk_dict["chunk"], chunk_dict["metadata"]
 

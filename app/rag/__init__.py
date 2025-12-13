@@ -8,7 +8,12 @@
 # │   ├── config.py
 # │   └── __init__.py # Folder structure
 
-from app.rag._classes import ChunkDict, MetaDataDict, PDFBatch, VectorPayload
+from app.rag._classes import (
+    ChunkDict,
+    MetaDataDict,
+    PDFBatch,
+    VectorPayload,
+)
 from app.rag._utils import prepare_metadata
 from app.rag.chunker import chunk_text
 from app.rag.embedder import Embedder
