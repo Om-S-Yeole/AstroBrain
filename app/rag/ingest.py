@@ -187,7 +187,7 @@ def ingest_pdf_to_batches_and_metadata(
     for _, raw_batch in enumerate(batch_it):
         batch = preprocess_batch(raw_batch)
         metadata = prepare_metadata(
-            source_name, batch["page_start"], batch["page_end"], extra=None
+            batch.text, source_name, batch["page_start"], batch["page_end"], extra=None
         )
         yield batch, metadata
 
@@ -251,7 +251,9 @@ def ingest_and_chunk_pdf(
         chunks: list[str] = chunk_text(pdf_batch["text"], chunk_size, overlap)
 
         for chunk in chunks:
-            yield ChunkDict(chunk=chunk, metadata=metadatadict)
+            yield ChunkDict(
+                chunk=chunk, metadata=MetaDataDict(**metadatadict, text=chunk)
+            )
 
 
 def ingest_directory(
