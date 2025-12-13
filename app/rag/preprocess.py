@@ -1,6 +1,6 @@
 import re
 
-from app.rag import PDFBatch
+from app.rag._classes import PDFBatch
 
 
 def clean_text(text: str) -> str:
@@ -42,7 +42,8 @@ def clean_text(text: str) -> str:
         raise TypeError(f"Expected type of text is str, got {type(text)}")
 
     # 1. Remove control characters
-    text = re.sub(r"[\x00-\x1F\x7F-\x9F]", "", text)
+    # text = re.sub(r"[\x00-\x1F\x7F-\x9F]", "", text)
+    text = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]", "", text)
 
     # 2. Normalize unicode punctuation
     replacements = {
@@ -275,6 +276,6 @@ def preprocess_batch(batch: PDFBatch) -> PDFBatch:
     """
     batch = PDFBatch.model_validate(batch)
 
-    batch["text"] = preprocess_page(batch["text"])
+    batch.text = preprocess_page(batch.text)
 
     return batch

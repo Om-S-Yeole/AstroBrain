@@ -1,9 +1,10 @@
 import warnings
-from typing import Literal, Iterator
+from typing import Iterator, Literal
 
 from pinecone import Pinecone, ServerlessSpec, UpsertResponse
 
-from app.rag import Embedder, VectorPayload
+from app.rag._classes import ChunkDict, VectorPayload
+from app.rag.embedder import Embedder
 
 
 class VectorStore:
@@ -22,7 +23,7 @@ class VectorStore:
         Name of the Pinecone index to use or create.
     namespace : str
         Namespace within the index for organizing vectors.
-    embedding_model : {'openai', 'google', 'ollama'}
+    embedding_model : {'openai', 'google', 'ollama', 'hugging_face'}
         The embedding provider to use.
     api_key_embedder : str or None, optional
         API key for the embedding provider (required for 'openai' and 'google'). Default is None.
@@ -31,6 +32,10 @@ class VectorStore:
         Note: May be overridden by the actual embedder dimensions.
     ollama_model : str or None, optional
         Model name for Ollama provider (required when using 'ollama'). Default is None.
+    hugging_face_model : str or None, optional
+        Model name for Hugging Face provider (required when using 'hugging_face'). Default is None.
+    hf_device : {'cuda', 'cpu'}, optional
+        Device to use for Hugging Face models. Default is 'cuda'.
     cloud : str, optional
         Cloud provider for Pinecone serverless ('aws', 'gcp', or 'azure'). Default is 'aws'.
     region : str, optional
@@ -93,10 +98,12 @@ class VectorStore:
         api_key_pinecone: str,
         index_name: str,
         namespace: str,
-        embedding_model: Literal["openai", "google", "ollama"],
+        embedding_model: Literal["openai", "google", "ollama", "hugging_face"],
         api_key_embedder: str | None = None,
         dimensions: int = 1024,
         ollama_model: str | None = None,
+        hugging_face_model: str | None = None,
+        hf_device: Literal["cuda", "cpu"] = "cuda",
         cloud: str = "aws",
         region: str = "us-east-1",
         index_deletion_protection: bool = False,
@@ -112,7 +119,7 @@ class VectorStore:
             Name of the Pinecone index.
         namespace : str
             Namespace for organizing vectors.
-        embedding_model : {'openai', 'google', 'ollama'}
+        embedding_model : {'openai', 'google', 'ollama', 'hugging_face'}
             Embedding provider to use.
         api_key_embedder : str or None, optional
             API key for the embedding provider. Default is None.
@@ -120,6 +127,10 @@ class VectorStore:
             Desired embedding dimensions. Default is 1024.
         ollama_model : str or None, optional
             Ollama model name. Default is None.
+        hugging_face_model : str or None, optional
+            Hugging Face model name. Default is None.
+        hf_device : {'cuda', 'cpu'}, optional
+            Device for Hugging Face models. Default is 'cuda'.
         cloud : str, optional
             Cloud provider for Pinecone. Default is 'aws'.
         region : str, optional
@@ -152,9 +163,9 @@ class VectorStore:
             raise TypeError(
                 f"Expected type of embedding_model is str. Got {type(embedding_model)}"
             )
-        if embedding_model not in ["openai", "google", "ollama"]:
+        if embedding_model not in ["openai", "google", "ollama", "hugging_face"]:
             raise ValueError(
-                f"Expected value of embedding_model is from ['openai', 'google', 'ollama']. Got {embedding_model}."
+                f"Expected value of embedding_model is from ['openai', 'google', 'ollama', 'hugging_face']. Got {embedding_model}."
             )
         if not isinstance(api_key_embedder, str) and api_key_embedder is not None:
             raise TypeError(
@@ -167,6 +178,16 @@ class VectorStore:
         if not isinstance(ollama_model, str) and ollama_model is not None:
             raise TypeError(
                 f"Expected type of ollama_model is str or None. Got {type(ollama_model)}"
+            )
+        if not isinstance(hugging_face_model, str) and hugging_face_model is not None:
+            raise TypeError(
+                f"Expected type of hugging_face_model is str or None. Got {type(hugging_face_model)}"
+            )
+        if not isinstance(hf_device, str):
+            raise TypeError(f"Expected type of hf_device is str. Got {type(hf_device)}")
+        if hf_device not in ["cuda", "cpu"]:
+            raise ValueError(
+                f"Expected value of hf_device is from ['cuda', 'cpu']. Got {hf_device}."
             )
         if not isinstance(cloud, str):
             raise TypeError(f"Expected type of cloud is str. Got {type(cloud)}")
@@ -188,9 +209,13 @@ class VectorStore:
             dimensions=dimensions,
             api_key=api_key_embedder,
             ollama_model=ollama_model,
+            hugging_face_model=hugging_face_model,
+            hf_device=hf_device,
         )
 
         self.ollama_model = ollama_model
+        self.hugging_face_model = hugging_face_model
+        self.hf_device = hf_device
         self.embedder_dimensions = self.embedder.dimensions
         if dimensions != self.embedder_dimensions:
             warnings.warn(
@@ -337,8 +362,7 @@ class VectorStore:
                     f"Dimensions of embedder and the dimensions of the upserting vector must match. Got dimensions, embedder: {self.dimensions} and upserting vector: {len(payload.values)}"
                 )
             validated_batch.append(payload.model_dump())
-
-        return self.index.upsert_records(namespace=self.namespace_name, records=batch)
+        return self.index.upsert(namespace=self.namespace_name, vectors=validated_batch)
 
     def upsert_iterator(
         self,
@@ -456,6 +480,72 @@ class VectorStore:
                 break
 
         return num_batches_inserted
+
+    def upsert_from_chunkdict_iterator(
+        self,
+        chunk_dict_it: Iterator[ChunkDict],
+        batch_size: int = 100,
+        upsert_lesser_batch: bool = True,
+        show_progress: bool = True,
+        show_progress_after_batches: int = 20,
+    ):
+        """
+        Upsert vectors from an iterator of ChunkDict objects in batches.
+
+        This method consumes an iterator of ChunkDict objects, embeds each chunk,
+        and upserts them in configurable batch sizes. It's a convenience method
+        that combines embedding and upserting in a single operation.
+
+        Parameters
+        ----------
+        chunk_dict_it : Iterator of ChunkDict
+            Iterator yielding ChunkDict objects containing chunk text and metadata.
+        batch_size : int, optional
+            Number of vectors to include in each batch. Default is 100.
+        upsert_lesser_batch : bool, optional
+            Whether to upsert the final batch if it's smaller than batch_size. Default is True.
+        show_progress : bool, optional
+            Whether to display progress updates. Default is True.
+        show_progress_after_batches : int, optional
+            Show progress after this many batches. Default is 20.
+
+        Returns
+        -------
+        int
+            Total number of batches successfully upserted.
+
+        Raises
+        ------
+        TypeError
+            If any parameter has incorrect type.
+        ValueError
+            If batch_size < 1 or show_progress_after_batches < 1.
+
+        Notes
+        -----
+        This method automatically handles embedding generation for each chunk
+        using the vectorstore's embedder before upserting.
+
+        Examples
+        --------
+        >>> from app.rag.ingest import ingest_and_chunk_pdf
+        >>> chunks = ingest_and_chunk_pdf("document.pdf", "my_doc")
+        >>> num_batches = vectorstore.upsert_from_chunkdict_iterator(
+        ...     chunks,
+        ...     batch_size=50
+        ... )
+        20 batches upserted successfully.
+        >>> num_batches
+        20
+        """
+        vector_paylod_it = self.embedder.embed_chunk_iterator(chunk_dict_it)
+        return self.upsert_iterator(
+            vector_paylod_it,
+            batch_size,
+            upsert_lesser_batch,
+            show_progress,
+            show_progress_after_batches,
+        )
 
     def delete_namespace(self, namespace_name: str | None):
         """

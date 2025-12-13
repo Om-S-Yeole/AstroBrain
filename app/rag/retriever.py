@@ -1,4 +1,5 @@
-from app.rag import VectorStore, RetrievedChunk
+from app.rag._classes import RetrievedChunk
+from app.rag.vectorstore import VectorStore
 
 
 class Retriever:

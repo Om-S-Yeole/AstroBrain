@@ -10,3 +10,7 @@ __pycache__/
 
 # documents
 documents/
+test_docs/
+
+# testing
+test_main.py

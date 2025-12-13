@@ -1,13 +1,15 @@
 import re
 import uuid
-from typing import Literal, Tuple
+import warnings
+from typing import Iterator, Literal, Tuple
 
 from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 
-from app.rag import ChunkDict, MetaDataDict, VectorPayload
+from app.rag._classes import ChunkDict, MetaDataDict, VectorPayload
 
 
 class Embedder:
@@ -15,21 +17,25 @@ class Embedder:
     A unified interface for text embedding using various providers.
 
     This class provides a consistent API for generating text embeddings using
-    different embedding providers (OpenAI, Google Generative AI, or Ollama).
+    different embedding providers (OpenAI, Google Generative AI, Ollama, or Hugging Face).
     It handles model initialization, text embedding, batch processing, and
     vector payload preparation for vector databases.
 
     Parameters
     ----------
-    embedding_model : {'openai', 'ollama', 'google'}
+    embedding_model : {'openai', 'ollama', 'google', 'hugging_face'}
         The embedding provider to use.
     dimensions : int, optional
         The dimensionality of the embedding vectors. Default is 1024.
-        Note: For Ollama models, this may be overridden by the model's native dimensions.
+        Note: Actual dimensions may vary based on the model's native dimensions.
     api_key : str or None, optional
         API key required for 'openai' and 'google' providers. Default is None.
     ollama_model : str or None, optional
         The Ollama model name, required when using 'ollama' provider. Default is None.
+    hugging_face_model : str or None, optional
+        The Hugging Face model name, required when using 'hugging_face' provider. Default is None.
+    hf_device : {'cuda', 'cpu'}, optional
+        Device to use for Hugging Face models. Default is 'cuda'.
 
     Attributes
     ----------
@@ -48,7 +54,8 @@ class Embedder:
         If embedding_model is not a string or dimensions is not an integer.
     ValueError
         If embedding_model is not one of the supported providers, dimensions is less than 2,
-        api_key is missing for 'openai' or 'google', or ollama_model is missing for 'ollama'.
+        api_key is missing for 'openai' or 'google', ollama_model is missing for 'ollama',
+        or hugging_face_model is missing for 'hugging_face'.
 
     Examples
     --------
@@ -57,7 +64,7 @@ class Embedder:
     >>> len(embedding)
     512
 
-    >>> embedder = Embedder(embedding_model="ollama", ollama_model="nomic-embed-text")
+    >>> embedder = Embedder(embedding_model="hugging_face", hugging_face_model="sentence-transformers/all-MiniLM-L6-v2")
     >>> embeddings = embedder.embed_batch(["Text 1", "Text 2"])
     >>> len(embeddings)
     2
@@ -65,17 +72,19 @@ class Embedder:
 
     def __init__(
         self,
-        embedding_model: Literal["openai", "ollama", "google"],
+        embedding_model: Literal["openai", "ollama", "google", "hugging_face"],
         dimensions: int = 1024,
         api_key: str | None = None,
         ollama_model: str | None = None,
+        hugging_face_model: str | None = None,
+        hf_device: Literal["cuda", "cpu"] = "cuda",
     ):
         """
         Initialize the Embedder with the specified embedding provider and configuration.
 
         Parameters
         ----------
-        embedding_model : {'openai', 'ollama', 'google'}
+        embedding_model : {'openai', 'ollama', 'google', 'hugging_face'}
             The embedding provider to use.
         dimensions : int, optional
             The desired embedding vector dimensions. Default is 1024.
@@ -83,6 +92,10 @@ class Embedder:
             API key for OpenAI or Google providers. Default is None.
         ollama_model : str or None, optional
             Model name for Ollama provider. Default is None.
+        hugging_face_model : str or None, optional
+            Model name for Hugging Face provider. Default is None.
+        hf_device : {'cuda', 'cpu'}, optional
+            Device to use for Hugging Face models. Default is 'cuda'.
 
         Raises
         ------
@@ -96,9 +109,9 @@ class Embedder:
             raise TypeError(
                 f"Expected type of embedding_model is str. Got {type(embedding_model)}."
             )
-        if embedding_model not in ["openai", "ollama", "google"]:
+        if embedding_model not in ["openai", "ollama", "google", "hugging_face"]:
             raise ValueError(
-                f"Valid values for embedding_model are openai, ollama, or google. Got {embedding_model}."
+                f"Valid values for embedding_model are openai, ollama, google, or hugging_face. Got {embedding_model}."
             )
         if not isinstance(dimensions, int):
             raise TypeError(
@@ -108,18 +121,43 @@ class Embedder:
             raise ValueError(
                 f"Value of dimensions must be greater than 1. Got {dimensions}."
             )
+        if not isinstance(api_key, str) and api_key is not None:
+            raise TypeError(
+                f"Expected type of api_key is str or None. Got {type(api_key)}"
+            )
+        if not isinstance(ollama_model, str) and ollama_model is not None:
+            raise TypeError(
+                f"Expected type of ollama_model is str or None. Got {type(ollama_model)}"
+            )
+        if not isinstance(hugging_face_model, str) and hugging_face_model is not None:
+            raise TypeError(
+                f"Expected type of hugging_face_model is str or None. Got {type(hugging_face_model)}"
+            )
+        if not isinstance(hf_device, str):
+            raise TypeError(f"Expected type of hf_device is str. Got {type(hf_device)}")
+        if hf_device not in ["cuda", "cpu"]:
+            raise ValueError(
+                f"Valid values for hf_device are 'cuda' or 'cpu'. Got {hf_device}."
+            )
 
         self.embedder_provider = embedding_model
         self.model, self.model_name, self.dimensions = self._init_embedding_model(
-            embedding_model, dimensions, api_key, ollama_model
+            embedding_model,
+            dimensions,
+            api_key,
+            ollama_model,
+            hugging_face_model,
+            hf_device,
         )
 
     def _init_embedding_model(
         self,
-        embedding_model: Literal["openai", "ollama", "google"],
+        embedding_model: Literal["openai", "ollama", "google", "hugging_face"],
         dimensions: int = 1024,
         api_key: str | None = None,
         ollama_model: str | None = None,
+        hugging_face_model: str | None = None,
+        hf_device: Literal["cuda", "cpu"] = "cuda",
     ) -> Tuple[Embeddings, str, int]:
         """
         Initialize the specific embedding model based on the provider.
@@ -130,7 +168,7 @@ class Embedder:
 
         Parameters
         ----------
-        embedding_model : {'openai', 'ollama', 'google'}
+        embedding_model : {'openai', 'ollama', 'google', 'hugging_face'}
             The embedding provider to initialize.
         dimensions : int, optional
             The desired embedding vector dimensions. Default is 1024.
@@ -138,6 +176,10 @@ class Embedder:
             API key for OpenAI or Google providers. Default is None.
         ollama_model : str or None, optional
             Model name for Ollama provider. Default is None.
+        hugging_face_model : str or None, optional
+            Model name for Hugging Face provider. Default is None.
+        hf_device : {'cuda', 'cpu'}, optional
+            Device to use for Hugging Face models. Default is 'cuda'.
 
         Returns
         -------
@@ -150,16 +192,18 @@ class Embedder:
         Raises
         ------
         ValueError
-            If required parameters (api_key or ollama_model) are missing for the selected provider.
+            If required parameters are missing for the selected provider.
 
         Notes
         -----
-        For Ollama models, the actual dimensions are determined by the model itself
-        and may differ from the requested dimensions parameter.
+        The actual dimensions are determined by the model itself and may differ
+        from the requested dimensions parameter.
         """
         model = None
         model_type = None
         dim = None
+
+        # Dimensions may override.
         match embedding_model:
             case "openai":
                 if api_key is None:
@@ -172,7 +216,6 @@ class Embedder:
                     api_key=api_key,
                 )
                 model_type = "text-embedding-3-large"
-                dim = dimensions
             case "google":
                 if api_key is None:
                     raise ValueError(
@@ -182,10 +225,9 @@ class Embedder:
                     model="gemini-embedding-001",
                     api_key=api_key,
                     task_type="SEMANTIC_SIMILARITY",
-                    request_options={"output_dimensionality": dimensions},
+                    client_args={"output_dimensionality": dimensions},
                 )
                 model_type = "gemini-embedding-001"
-                dim = dimensions
             case "ollama":
                 if ollama_model is None:
                     raise ValueError(
@@ -196,10 +238,25 @@ class Embedder:
                     validate_model_on_init=True,
                     repeat_penalty=1.2,
                 )
-                temp_embed = model.embed_query("Hello world")
-                # Dimensions may override when ollama is used.
-                dim = len(temp_embed)
                 model_type = ollama_model
+            case "hugging_face":
+                if hugging_face_model is None:
+                    raise ValueError(
+                        "Expected argument hugging_face_model when 'hugging_face' is selected as embedding_model."
+                    )
+                model = HuggingFaceEmbeddings(
+                    model_name=hugging_face_model,
+                    model_kwargs={"device": hf_device, "truncate_dim": dimensions},
+                )
+                model_type = hugging_face_model
+
+        temp_embed = model.embed_query("Hello world")
+        dim = len(temp_embed)
+
+        if dim != dimensions:
+            warnings.warn(
+                f"[WARNING] Expected dimensions of vectors passed by user are {dimensions}. But the embedding model forced the dimensions {dim}. Using the dimensions enforced by the embedding model."
+            )
 
         return model, model_type, dim
 
@@ -433,10 +490,55 @@ class Embedder:
         """
         chunk_dict = ChunkDict.model_validate(chunk_dict)
 
-        chunk, metadata = chunk_dict["chunk"], chunk_dict["metadata"]
+        chunk, metadata = chunk_dict.chunk, chunk_dict.metadata
 
         embed = self.embed_text(chunk)
-        id = self.generate_id(
-            metadata["source"], metadata["page_start"], metadata["page_end"]
-        )
+        id = self.generate_id(metadata.source, metadata.page_start, metadata.page_end)
         return self.prepare_vector_payload(embed, metadata, id)
+
+    def embed_chunk_iterator(
+        self, chunk_it: Iterator[ChunkDict]
+    ) -> Iterator[VectorPayload]:
+        """
+        Process an iterator of chunk dictionaries into vector payloads.
+
+        This generator method consumes an iterator of ChunkDict objects and yields
+        VectorPayload objects, applying embedding generation, ID creation, and
+        payload preparation for each chunk.
+
+        Parameters
+        ----------
+        chunk_it : Iterator of ChunkDict
+            Iterator yielding chunk dictionaries with 'chunk' (text) and 'metadata' keys.
+
+        Yields
+        ------
+        VectorPayload
+            Complete vector payloads ready for vector database insertion.
+
+        Raises
+        ------
+        TypeError
+            If chunk_dict items are not dictionaries with the expected structure.
+
+        See Also
+        --------
+        embed_chunk : Processes a single chunk dictionary.
+
+        Notes
+        -----
+        This method is memory-efficient as it processes chunks lazily without
+        loading the entire dataset into memory.
+
+        Examples
+        --------
+        >>> embedder = Embedder(embedding_model="openai", api_key="sk-...")
+        >>> from app.rag.ingest import ingest_and_chunk_pdf
+        >>> chunks = ingest_and_chunk_pdf("doc.pdf", "my_doc")
+        >>> payloads = embedder.embed_chunk_iterator(chunks)
+        >>> for payload in payloads:
+        ...     print(f"ID: {payload.id}, Dims: {len(payload.values)}")
+        ID: my_doc_0_4_uuid..., Dims: 1024
+        """
+        for chunk_dict in chunk_it:
+            yield self.embed_chunk(chunk_dict)

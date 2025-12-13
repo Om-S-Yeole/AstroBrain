@@ -5,14 +5,10 @@ from typing import Iterator, Tuple
 
 from pypdf import PdfReader
 
-from app.rag import (
-    ChunkDict,
-    MetaDataDict,
-    PDFBatch,
-    chunk_text,
-    prepare_metadata,
-    preprocess_batch,
-)
+from app.rag._classes import ChunkDict, MetaDataDict, PDFBatch
+from app.rag._utils import prepare_metadata
+from app.rag.chunker import chunk_text
+from app.rag.preprocess import preprocess_batch
 
 
 def stream_pdf_pages(path: str, show_warn: bool = True) -> Iterator[Tuple[int, str]]:
@@ -187,7 +183,10 @@ def ingest_pdf_to_batches_and_metadata(
     for _, raw_batch in enumerate(batch_it):
         batch = preprocess_batch(raw_batch)
         metadata = prepare_metadata(
-            batch.text, source_name, batch["page_start"], batch["page_end"], extra=None
+            batch.text,
+            source_name,
+            batch.page_start,
+            batch.page_end,
         )
         yield batch, metadata
 
@@ -248,11 +247,12 @@ def ingest_and_chunk_pdf(
     for batch_content in batch_it:
         pdf_batch, metadatadict = batch_content
 
-        chunks: list[str] = chunk_text(pdf_batch["text"], chunk_size, overlap)
+        chunks: list[str] = chunk_text(pdf_batch.text, chunk_size, overlap)
 
         for chunk in chunks:
             yield ChunkDict(
-                chunk=chunk, metadata=MetaDataDict(**metadatadict, text=chunk)
+                chunk=chunk,
+                metadata=MetaDataDict(**{**metadatadict.model_dump(), "text": chunk}),
             )
 
 

@@ -14,7 +14,7 @@ class MetaDataDict(BaseModel):
     source: str
     page_start: int
     page_end: int
-    extra: dict
+    # extra: dict
 
 
 class ChunkDict(BaseModel):
