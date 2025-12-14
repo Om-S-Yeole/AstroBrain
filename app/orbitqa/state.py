@@ -82,7 +82,7 @@ class OrbitQAState(TypedDict):
     understood_request: List[TaskDescription]
     user_passed_params: Dict[str, Any]  # Store user given params globally
     request_action: Literal["toDeny", "toClarify", "toProceed"]
-    to_ask: Optional[str]
+    to_ask: str
 
     # ---- For 'clarify' ----
     user_clarifications: List[str]
