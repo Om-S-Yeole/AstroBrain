@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from math import pi, sqrt
 
 import numpy as np
+import pytz
 from astropy import units as u
 from astropy.time import TimeDelta
 from astropy.units import Quantity
@@ -759,6 +760,7 @@ def universal_kepler(
     dt : int, float, datetime.timedelta, or astropy.time.TimeDelta
         Time increment for propagation. If int or float, assumed to be in seconds.
         Positive values propagate forward in time, negative values propagate backward.
+        When using datetime or timedelta objects, ensure they are in UTC timezone.
     attractor : str or poliastro.bodies.Body, optional
         The central body around which the orbit is propagated. Can be a string name
         (e.g., 'earth', 'mars') or a poliastro Body object. Default is Earth.
@@ -871,6 +873,7 @@ def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
     at_datetime : str or datetime.datetime
         The date and time at which to compute the satellite's position and velocity.
         If string, must be in the format 'YYYY-MM-DD HH:MM:SS'.
+        If datetime, must be timezone-aware (UTC).
 
     Returns
     -------
@@ -936,6 +939,9 @@ def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
 
     if isinstance(at_datetime, str):
         at_datetime = datetime.strptime(at_datetime, format="%Y-%m-%d %H:%M:%S")
+
+    # UTC time is expected
+    at_datetime = at_datetime.replace(tzinfo=pytz.utc)
 
     _, whole_part, frac_part = datetime_to_jd(at_datetime)
 

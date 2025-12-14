@@ -2,6 +2,7 @@ from datetime import datetime
 from math import cos, sin
 
 import numpy as np
+import pytz
 from astropy.units import Quantity, Unit
 from poliastro.bodies import (
     Body,
@@ -170,7 +171,7 @@ def datetime_to_jd(dt: datetime) -> tuple[float, float, float]:
     ----------
     dt : datetime.datetime
         The datetime object to convert. Should include year, month, day, hour,
-        minute, and second components.
+        minute, and second components. Expected to be in UTC timezone.
 
     Returns
     -------
@@ -192,16 +193,20 @@ def datetime_to_jd(dt: datetime) -> tuple[float, float, float]:
     Julian Date is a continuous count of days since the beginning of the Julian
     Period (January 1, 4713 BC, noon UTC).
 
+    All datetime objects in this library are expected to be in UTC timezone.
+
     Examples
     --------
     >>> from datetime import datetime
-    >>> dt = datetime(2025, 1, 1, 12, 0, 0)
+    >>> import pytz
+    >>> dt = datetime(2025, 1, 1, 12, 0, 0, tzinfo=pytz.utc)
     >>> jd, whole, frac = datetime_to_jd(dt)
     >>> print(f"Julian Date: {jd}")
     >>> print(f"Whole part: {whole}, Fractional part: {frac}")
 
     >>> # Convert current time
-    >>> now = datetime.now()
+    >>> from datetime import datetime
+    >>> now = datetime.now(pytz.utc)
     >>> jd, _, _ = datetime_to_jd(now)
     >>> print(f"Current JD: {jd}")
     """
@@ -210,6 +215,82 @@ def datetime_to_jd(dt: datetime) -> tuple[float, float, float]:
     )
     julian_day = whole_part + frac_part
     return julian_day, whole_part, frac_part
+
+
+def datetime_from_times(
+    year: int, month: int, day: int, hour: int, minute: int, second: int
+) -> datetime:
+    """
+    Create a UTC-aware datetime object from individual time components.
+
+    This function constructs a Python datetime object from separate integer values
+    for year, month, day, hour, minute, and second. The returned datetime is
+    timezone-aware and set to UTC. It includes type validation for all input
+    parameters to ensure data integrity.
+
+    Parameters
+    ----------
+    year : int
+        The year (e.g., 2025).
+    month : int
+        The month (1-12).
+    day : int
+        The day of the month (1-31, depending on month).
+    hour : int
+        The hour in 24-hour format (0-23).
+    minute : int
+        The minute (0-59).
+    second : int
+        The second (0-59).
+
+    Returns
+    -------
+    datetime.datetime
+        A timezone-aware datetime object (UTC) representing the specified date and time.
+
+    Raises
+    ------
+    TypeError
+        If any of the parameters is not an integer.
+    ValueError
+        If any parameter is out of the valid range (raised by datetime constructor).
+
+    Notes
+    -----
+    All datetime objects in this library are configured to use UTC timezone
+    for consistency in orbital calculations.
+
+    Examples
+    --------
+    >>> datetime_from_times(2025, 1, 1, 12, 0, 0)
+    datetime.datetime(2025, 1, 1, 12, 0, tzinfo=<UTC>)
+
+    >>> # Create datetime for a specific orbital epoch
+    >>> epoch = datetime_from_times(2025, 12, 14, 10, 30, 45)
+    >>> print(epoch)
+    2025-12-14 10:30:45+00:00
+
+    >>> # New Year's Day 2024 at midnight UTC
+    >>> ny_2024 = datetime_from_times(2024, 1, 1, 0, 0, 0)
+    >>> print(ny_2024)
+    2024-01-01 00:00:00+00:00
+    >>> print(ny_2024.tzinfo)
+    UTC
+    """
+    if not isinstance(year, int):
+        raise TypeError(f"Expected type of year is int. Got {type(year)}")
+    if not isinstance(month, int):
+        raise TypeError(f"Expected type of month is int. Got {type(month)}")
+    if not isinstance(day, int):
+        raise TypeError(f"Expected type of day is int. Got {type(day)}")
+    if not isinstance(hour, int):
+        raise TypeError(f"Expected type of hour is int. Got {type(hour)}")
+    if not isinstance(minute, int):
+        raise TypeError(f"Expected type of minute is int. Got {type(minute)}")
+    if not isinstance(second, int):
+        raise TypeError(f"Expected type of second is int. Got {type(second)}")
+
+    return datetime(year, month, day, hour, minute, second).replace(tzinfo=pytz.utc)
 
 
 def deg2rad(angle_deg: int | float) -> float:
