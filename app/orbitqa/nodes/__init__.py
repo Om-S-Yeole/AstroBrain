@@ -1,4 +1,5 @@
 from app.orbitqa.nodes.clarify import clarify
+from app.orbitqa.nodes.compute_and_plot import compute_and_plot
 from app.orbitqa.nodes.deny import deny
 from app.orbitqa.nodes.proceed import proceed
 from app.orbitqa.nodes.read_request import read_request
@@ -16,4 +17,5 @@ __all__ = [
     "retrieve",
     "retriever",
     "tool_selector",
+    "compute_and_plot",
 ]
