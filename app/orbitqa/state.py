@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ----- For 'understand' to define the tasks ------
@@ -24,22 +24,41 @@ class RetrievedDoc(TypedDict):
 
 # For literal outputs
 class LiteralInput(BaseModel):
-    kind: Literal["literal"]
-    value: Any
+    kind: Literal["literal"] = Field(
+        ..., description="Input is a literal value and can be taken as it is"
+    )
+    value: Any = Field(..., description="Value of the input")
 
 
 # For dict outputs
 class DictRefInput(BaseModel):
-    kind: Literal["dict_ref"]
-    from_tool_id: str
-    key: str
+    kind: Literal["dict_ref"] = Field(
+        ..., description="Input value must be accessed from dictionary"
+    )
+    from_tool_id: str = Field(
+        ...,
+        description="Tool id of the tool from whom output the input value is to be taken. Output of this tool is dictionary.",
+    )
+    key: str = Field(
+        ...,
+        description="Which key of the tool's output dictionary must be accessed to get the input value.",
+    )
 
 
 # For index based outputs like tuple and list
 class IndexRefInput(BaseModel):
-    kind: Literal["index_ref"]
-    from_tool_id: str
-    index: int
+    kind: Literal["index_ref"] = Field(
+        ...,
+        description="Input value must be accessed from tuple or list (Index based sequences).",
+    )
+    from_tool_id: str = Field(
+        ...,
+        description="Tool id of the tool from whom output the input value is to be taken. Output of this tool is list, or tuple or any other index based sequence which as inherent order. But not python dictionary.",
+    )
+    index: int = Field(
+        ...,
+        description="Which index of the tool's output sequence like structure must be accessed to get the input value.",
+    )
 
 
 ToolInput = Union[LiteralInput, DictRefInput, IndexRefInput]

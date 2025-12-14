@@ -4,6 +4,7 @@ from app.orbitqa.nodes.proceed import proceed
 from app.orbitqa.nodes.read_request import read_request
 from app.orbitqa.nodes.retrieve import retrieve
 from app.orbitqa.nodes.retriever import retriever
+from app.orbitqa.nodes.tool_selector import tool_selector
 from app.orbitqa.nodes.understand import understand
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "clarify",
     "retrieve",
     "retriever",
+    "tool_selector",
 ]

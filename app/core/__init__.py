@@ -21,6 +21,7 @@ from app.core.plotting import plot_altitude_vs_time, plot_orbit_3d, plot_transfe
 from app.core.utils import (
     body_from_str,
     cross,
+    datetime_from_times,
     datetime_to_jd,
     deg2rad,
     dot,
@@ -30,12 +31,15 @@ from app.core.utils import (
     rotation_matrix_from_ECI_to_perifocal,
     rotation_matrix_from_perifocal_to_ECI,
     unit_vec,
+    uuid_generator,
 )
 
 __all__ = [
     "body_from_str",
     "cross",
     "datetime_to_jd",
+    "datetime_from_times",
+    "uuid_generator",
     "deg2rad",
     "dot",
     "non_quantity_to_Quantity",

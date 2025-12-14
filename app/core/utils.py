@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from math import cos, sin
 
@@ -816,3 +817,65 @@ def dot(a: list | np.ndarray, b: list | np.ndarray) -> float:
         raise TypeError(f"Expected type of b is list or np.ndarray. Got {type(b)}.")
 
     return np.dot(np.asarray(a), np.asarray(b))
+
+
+def uuid_generator() -> str:
+    """
+    Generate a unique UUID (Universally Unique Identifier) as a string.
+
+    This function creates a random UUID version 4 and returns it as a string
+    representation. UUIDs are 128-bit identifiers that are practically guaranteed
+    to be unique across space and time, making them ideal for generating unique
+    identifiers without requiring a central coordination authority.
+
+    Returns
+    -------
+    str
+        A string representation of a UUID4 in the format:
+        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx' where x is a hexadecimal digit
+        and y is one of 8, 9, a, or b.
+
+    Notes
+    -----
+    This function uses Python's uuid.uuid4() which generates random UUIDs based
+    on random numbers. The probability of collision is extremely low (approximately
+    1 in 2^122).
+
+    UUID4 format:
+    - 32 hexadecimal digits
+    - Displayed in 5 groups separated by hyphens
+    - Total length: 36 characters (32 hex digits + 4 hyphens)
+
+    Common use cases in this library:
+    - Generating unique identifiers for orbital elements
+    - Creating unique keys for database records
+    - Tagging simulation runs or analysis sessions
+    - Generating unique IDs for temporary files or objects
+
+    Examples
+    --------
+    >>> uuid_str = uuid_generator()
+    >>> print(uuid_str)
+    '550e8400-e29b-41d4-a716-446655440000'  # Example output (will vary)
+
+    >>> # Check format
+    >>> uuid_str = uuid_generator()
+    >>> len(uuid_str)
+    36
+    >>> uuid_str.count('-')
+    4
+
+    >>> # Generate multiple unique IDs
+    >>> ids = [uuid_generator() for _ in range(3)]
+    >>> len(set(ids))  # All should be unique
+    3
+
+    >>> # Use for tracking orbital simulations
+    >>> simulation_id = uuid_generator()
+    >>> print(f"Starting simulation {simulation_id}")
+
+    See Also
+    --------
+    uuid.uuid4 : Python's built-in UUID generation function.
+    """
+    return str(uuid.uuid4())
