@@ -150,8 +150,7 @@ def understand(state: OrbitQAState, config: RunnableConfig):
 
     # ----- System Prompt ----
     SYSTEM_PROMPT = SystemMessage(
-        """
-    You are an aerospace mission-analysis understanding module inside a deterministic AI workflow.
+        """You are an aerospace mission-analysis understanding module inside a deterministic AI workflow.
 
     Your role is NOT to answer the user.
     Your role is to UNDERSTAND the user's request and decide the next control action.
@@ -165,8 +164,7 @@ def understand(state: OrbitQAState, config: RunnableConfig):
     ------------------------
 
     1. Extract ONLY NEW tasks from the user request.
-    - A task is a concrete, actionable aerospace operation
-        (e.g., "compute Hohmann transfer delta-v", "plot orbit", "retrieve textbook explanation").
+    - A task is a concrete, actionable aerospace operation (e.g., "compute Hohmann transfer delta-v", "plot orbit", "retrieve textbook explanation").
     - DO NOT repeat tasks already present in previous understanding.
 
     2. Extract ONLY NEW user-passed parameters with explicit values.
@@ -213,9 +211,7 @@ def understand(state: OrbitQAState, config: RunnableConfig):
     - non-consensual wrongdoing
     - requests unrelated to aerospace, physics, or engineering
 
-    When in doubt between "toClarify" and "toProceed", choose "toClarify".
-
-    """
+    When in doubt between "toClarify" and "toProceed", choose "toClarify"."""
     )
 
     # ----- Human Message ----
