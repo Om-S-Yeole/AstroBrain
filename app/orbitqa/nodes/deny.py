@@ -61,6 +61,9 @@ def deny(state: OrbitQAState):
                 "This request falls outside the supported aerospace and space-systems "
                 "domain or violates safety and ethical constraints."
             ),
+            "plots": [],
+            "warnings": state["warnings"]
+            + ["Request denied due to safety, ethical, or domain constraints."],
         },
         "warnings": state["warnings"]
         + ["Request denied due to safety, ethical, or domain constraints."],

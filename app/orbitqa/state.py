@@ -88,6 +88,15 @@ class PlotOutput(TypedDict):
     plot: Any
 
 
+# ---- For final response ---
+class FinalResponse(TypedDict):
+    status: Literal["success", "denied", "error"]
+    reason: str
+    message: str
+    plots: List[PlotOutput]
+    warnings: List[str]
+
+
 # -------------------------------------------------
 # Final state of OrbitQA agent
 # -------------------------------------------------
@@ -121,7 +130,7 @@ class OrbitQAState(TypedDict):
     plots: List[PlotOutput]
 
     # ---- For 'draft_final_response' ----
-    final_response: Dict[str, Any]
+    final_response: FinalResponse
 
     # ---- warnings -----
     warnings: List[str]
