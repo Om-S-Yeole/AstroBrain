@@ -4,7 +4,9 @@ from math import cos, sin
 
 import numpy as np
 import pytz
-from astropy.units import Quantity, Unit
+from astropy import units as u
+from astropy.units import Quantity
+from langchain.tools import tool
 from poliastro.bodies import (
     Body,
     Earth,
@@ -19,9 +21,183 @@ from poliastro.bodies import (
     Uranus,
     Venus,
 )
+from pydantic import BaseModel, Field
 from sgp4.api import jday
 
 
+class BodyFromStrSchema(BaseModel):
+    """Input schema for the body_from_str tool.
+
+    Defines the required parameters for converting a string representation
+    of a celestial body name to a poliastro Body object.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    planet: str | Body = Field(
+        description="Name of celestial body (case-insensitive) or Body object. Supported: 'sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'moon'"
+    )
+
+
+class NonQuantityToQuantitySchema(BaseModel):
+    """Input schema for the non_quantity_to_Quantity tool.
+
+    Defines the required parameters for converting numeric values to
+    astropy Quantity objects with specified units.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    value: int | float | list | np.ndarray | Quantity = Field(
+        description="Numeric value to convert (scalar, list, array, or existing Quantity)"
+    )
+    unit: str = Field(description="Astropy unit to attach or replace")
+
+
+class DatetimeToJDSchema(BaseModel):
+    """Input schema for the datetime_to_jd tool.
+
+    Defines the required parameters for converting a Python datetime
+    object to Julian Date format.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    dt: datetime = Field(
+        description="Datetime object to convert (expected in UTC timezone)"
+    )
+
+
+class DatetimeFromTimesSchema(BaseModel):
+    """Input schema for the datetime_from_times tool.
+
+    Defines the required parameters for creating a UTC-aware datetime
+    object from individual time components (year, month, day, etc.).
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    year: int = Field(description="Year (e.g., 2025)")
+    month: int = Field(description="Month (1-12)")
+    day: int = Field(description="Day of month (1-31)")
+    hour: int = Field(description="Hour in 24-hour format (0-23)")
+    minute: int = Field(description="Minute (0-59)")
+    second: int = Field(description="Second (0-59)")
+
+
+class Deg2RadSchema(BaseModel):
+    """Input schema for the deg2rad tool.
+
+    Defines the required parameters for converting an angle from
+    degrees to radians.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    angle_deg: int | float = Field(description="Angle in degrees to convert to radians")
+
+
+class Rad2DegSchema(BaseModel):
+    """Input schema for the rad2deg tool.
+
+    Defines the required parameters for converting an angle from
+    radians to degrees.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    angle_rad: int | float = Field(description="Angle in radians to convert to degrees")
+
+
+class NormSchema(BaseModel):
+    """Input schema for the norm tool.
+
+    Defines the required parameters for calculating the Euclidean norm
+    (magnitude) of a vector.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    vec: list | np.ndarray = Field(
+        description="Vector to calculate magnitude of (any dimension)"
+    )
+
+
+class UnitVecSchema(BaseModel):
+    """Input schema for the unit_vec tool.
+
+    Defines the required parameters for calculating the unit vector
+    (normalized vector) of a given vector.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    vec: list | np.ndarray = Field(description="Vector to normalize (any dimension)")
+
+
+class RotationMatrixPerifocalToECISchema(BaseModel):
+    """Input schema for the rotation_matrix_from_perifocal_to_ECI tool.
+
+    Defines the required parameters for computing the rotation matrix that
+    transforms vectors from the perifocal (PQW) coordinate frame to the
+    Earth-Centered Inertial (ECI) coordinate frame.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    raan: int | float = Field(
+        description="Right Ascension of Ascending Node (RAAN/Ω) in degrees"
+    )
+    i: int | float = Field(description="Inclination angle in degrees")
+    argp: int | float = Field(description="Argument of periapsis (ω) in degrees")
+
+
+class RotationMatrixECIToPerifocalSchema(BaseModel):
+    """Input schema for the rotation_matrix_from_ECI_to_perifocal tool.
+
+    Defines the required parameters for computing the rotation matrix that
+    transforms vectors from the Earth-Centered Inertial (ECI) coordinate
+    frame to the perifocal (PQW) coordinate frame.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    raan: int | float = Field(
+        description="Right Ascension of Ascending Node (RAAN/Ω) in degrees"
+    )
+    i: int | float = Field(description="Inclination angle in degrees")
+    argp: int | float = Field(description="Argument of periapsis (ω) in degrees")
+
+
+class CrossSchema(BaseModel):
+    """Input schema for the cross tool.
+
+    Defines the required parameters for calculating the cross product
+    (vector product) of two 3D vectors.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    a: list | np.ndarray = Field(description="First 3D vector")
+    b: list | np.ndarray = Field(description="Second 3D vector")
+
+
+class DotSchema(BaseModel):
+    """Input schema for the dot tool.
+
+    Defines the required parameters for calculating the dot product
+    (scalar product) of two vectors.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    a: list | np.ndarray = Field(description="First vector")
+    b: list | np.ndarray = Field(
+        description="Second vector (must have same length as first)"
+    )
+
+
+class UUIDGeneratorSchema(BaseModel):
+    """Input schema for the uuid_generator tool.
+
+    This tool requires no input parameters. It generates a unique UUID
+    (Universally Unique Identifier) as a string.
+    """
+
+    pass  # No inputs required
+
+
+@tool(args_schema=BodyFromStrSchema)
 def body_from_str(planet: str | Body) -> Body:
     """
     Convert a string or Body object to a poliastro Body object.
@@ -101,8 +277,9 @@ def body_from_str(planet: str | Body) -> Body:
         return planet
 
 
+@tool(args_schema=NonQuantityToQuantitySchema)
 def non_quantity_to_Quantity(
-    value: int | float | list | np.ndarray | Quantity, unit: Unit
+    value: int | float | list | np.ndarray | Quantity, unit: str
 ):
     """
     Convert a numeric value to an astropy Quantity with specified units.
@@ -148,10 +325,11 @@ def non_quantity_to_Quantity(
         raise TypeError(
             f"Expected type of value are either int or float or list or ndarray or astropy.units.Quantity. Got {type(value)}."
         )
-    if not isinstance(unit, Unit):
-        raise TypeError(
-            f"Expected type of unit is astropy.units.Unit. Got {type(unit)}."
-        )
+    if not isinstance(unit, str):
+        raise TypeError(f"Expected type of unit is str. Got {type(unit)}.")
+
+    if isinstance(unit, str):
+        unit = getattr(u, unit)
 
     # Replace the units of given Quantity with given units if value is instance of Quantity. Else attach the given unit to the given value.
     if isinstance(value, list):
@@ -159,6 +337,7 @@ def non_quantity_to_Quantity(
     return Quantity(value, unit)
 
 
+@tool(args_schema=DatetimeToJDSchema)
 def datetime_to_jd(dt: datetime) -> tuple[float, float, float]:
     """
     Convert a datetime object to Julian Date components.
@@ -218,6 +397,7 @@ def datetime_to_jd(dt: datetime) -> tuple[float, float, float]:
     return julian_day, whole_part, frac_part
 
 
+@tool(args_schema=DatetimeFromTimesSchema)
 def datetime_from_times(
     year: int, month: int, day: int, hour: int, minute: int, second: int
 ) -> datetime:
@@ -294,6 +474,7 @@ def datetime_from_times(
     return datetime(year, month, day, hour, minute, second).replace(tzinfo=pytz.utc)
 
 
+@tool(args_schema=Deg2RadSchema)
 def deg2rad(angle_deg: int | float) -> float:
     """
     Convert an angle from degrees to radians.
@@ -341,6 +522,7 @@ def deg2rad(angle_deg: int | float) -> float:
     return np.deg2rad(angle_deg)
 
 
+@tool(args_schema=Rad2DegSchema)
 def rad2deg(angle_rad: int | float) -> float:
     """
     Convert an angle from radians to degrees.
@@ -389,6 +571,7 @@ def rad2deg(angle_rad: int | float) -> float:
     return np.rad2deg(angle_rad)
 
 
+@tool(args_schema=NormSchema)
 def norm(vec: list | np.ndarray) -> float:
     """
     Calculate the Euclidean norm (magnitude) of a vector.
@@ -443,6 +626,7 @@ def norm(vec: list | np.ndarray) -> float:
     return np.linalg.norm(np.asarray(vec))
 
 
+@tool(args_schema=UnitVecSchema)
 def unit_vec(vec: list | np.ndarray) -> np.ndarray:
     """
     Calculate the unit vector (normalized vector) of a given vector.
@@ -503,6 +687,7 @@ def unit_vec(vec: list | np.ndarray) -> np.ndarray:
     return vec / np.linalg.norm(vec)
 
 
+@tool(args_schema=RotationMatrixPerifocalToECISchema)
 def rotation_matrix_from_perifocal_to_ECI(
     raan: int | float, i: int | float, argp: int | float
 ) -> np.ndarray:
@@ -592,6 +777,7 @@ def rotation_matrix_from_perifocal_to_ECI(
     )
 
 
+@tool(args_schema=RotationMatrixECIToPerifocalSchema)
 def rotation_matrix_from_ECI_to_perifocal(
     raan: int | float, i: int | float, argp: int | float
 ) -> np.ndarray:
@@ -671,6 +857,7 @@ def rotation_matrix_from_ECI_to_perifocal(
     return rotation_matrix_from_perifocal_to_ECI(raan, i, argp).T
 
 
+@tool(args_schema=CrossSchema)
 def cross(a: list | np.ndarray, b: list | np.ndarray) -> np.array:
     """
     Calculate the cross product of two vectors.
@@ -742,6 +929,7 @@ def cross(a: list | np.ndarray, b: list | np.ndarray) -> np.array:
     return np.cross(np.asarray(a), np.asarray(b))
 
 
+@tool(args_schema=DotSchema)
 def dot(a: list | np.ndarray, b: list | np.ndarray) -> float:
     """
     Calculate the dot product (scalar product) of two vectors.
@@ -819,6 +1007,7 @@ def dot(a: list | np.ndarray, b: list | np.ndarray) -> float:
     return np.dot(np.asarray(a), np.asarray(b))
 
 
+@tool(args_schema=UUIDGeneratorSchema)
 def uuid_generator() -> str:
     """
     Generate a unique UUID (Universally Unique Identifier) as a string.

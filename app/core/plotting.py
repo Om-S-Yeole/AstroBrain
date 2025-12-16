@@ -4,16 +4,88 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units as u
 from astropy.units import Quantity
+from langchain.tools import tool
 from matplotlib.figure import Figure
 from poliastro.bodies import Body, Earth
 from poliastro.maneuver import Maneuver
 from poliastro.plotting import OrbitPlotter
 from poliastro.plotting.orbit.backends import Plotly3D
 from poliastro.twobody import Orbit
+from pydantic import BaseModel, Field
 
-from app.core import body_from_str, non_quantity_to_Quantity
+from app.core.utils import body_from_str, non_quantity_to_Quantity
 
 
+class PlotOrbit3DSchema(BaseModel):
+    """Input schema for the plot_orbit_3d tool.
+
+    Defines the required parameters for creating a 3D visualization of an
+    orbit using Plotly interactive plotting.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in kilometers"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(
+        default="earth",
+        description="The central body around which the orbit is plotted",
+    )
+    color: Literal["red", "green", "blue"] = Field(
+        default="red", description="Color of the orbit trajectory"
+    )
+
+
+class PlotTransferSchema(BaseModel):
+    """Input schema for the plot_transfer tool.
+
+    Defines the required parameters for creating a 3D visualization of an
+    orbital transfer maneuver between two orbits using Lambert's problem.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    r_vec_1: list | np.ndarray | Quantity = Field(
+        description="Initial position vector [x, y, z] in km"
+    )
+    v_vec_1: list | np.ndarray | Quantity = Field(
+        description="Initial velocity vector [vx, vy, vz] in km/s"
+    )
+    r_vec_2: list | np.ndarray | Quantity = Field(
+        description="Final position vector [x, y, z] in km"
+    )
+    v_vec_2: list | np.ndarray | Quantity = Field(
+        description="Final velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(
+        default="earth", description="The central body around which the transfer occurs"
+    )
+    color: Literal["red", "green", "blue"] = Field(
+        default="red", description="Color of the transfer trajectory"
+    )
+
+
+class PlotAltitudeVsTimeSchema(BaseModel):
+    """Input schema for the plot_altitude_vs_time tool.
+
+    Defines the required parameters for creating a 2D plot showing how
+    altitude changes over time.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    times: list | np.ndarray = Field(
+        description="Array of time values (consistent units)"
+    )
+    alts: list | np.ndarray = Field(
+        description="Array of altitude values (typically km or m)"
+    )
+
+
+@tool(args_schema=PlotOrbit3DSchema)
 def plot_orbit_3d(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -97,8 +169,8 @@ def plot_orbit_3d(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
     plotter = OrbitPlotter(backend=Plotly3D())
@@ -107,6 +179,7 @@ def plot_orbit_3d(
     return plotter
 
 
+@tool(args_schema=PlotTransferSchema)
 def plot_transfer(
     r_vec_1: list | np.ndarray | Quantity,
     v_vec_1: list | np.ndarray | Quantity,
@@ -220,10 +293,10 @@ def plot_transfer(
             f"Only valid arguments of color are 'red', 'green' and 'blue'. Got '{color}'."
         )
 
-    r_vec_1 = non_quantity_to_Quantity(r_vec_1, u.km)
-    v_vec_1 = non_quantity_to_Quantity(v_vec_1, u.km / u.s)
-    r_vec_2 = non_quantity_to_Quantity(r_vec_2, u.km)
-    v_vec_2 = non_quantity_to_Quantity(v_vec_2, u.km / u.s)
+    r_vec_1 = non_quantity_to_Quantity(r_vec_1, "km")
+    v_vec_1 = Quantity(np.asarray(v_vec_1), u.km / u.s)
+    r_vec_2 = non_quantity_to_Quantity(r_vec_2, "km")
+    v_vec_2 = Quantity(np.asarray(v_vec_2), u.km / u.s)
 
     orbit_1 = Orbit.from_vectors(attractor, r_vec_1, v_vec_1)
     orbit_2 = Orbit.from_vectors(attractor, r_vec_2, v_vec_2)
@@ -236,6 +309,7 @@ def plot_transfer(
     return plotter
 
 
+@tool(args_schema=PlotAltitudeVsTimeSchema)
 def plot_altitude_vs_time(times: list | np.ndarray, alts: list | np.ndarray) -> Figure:
     """
     Create a 2D plot of altitude versus time.

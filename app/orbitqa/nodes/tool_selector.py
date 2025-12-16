@@ -1,61 +1,166 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from langchain.chat_models import BaseChatModel
 from langchain.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
-from app.orbitqa.state import OrbitQAState, ToolInput
+from app.orbitqa.state import OrbitQAState
+
+
+class ToolInputSafe(BaseModel):
+    """Schema for tool input specifications compatible with various LLM backends.
+
+    This simplified schema represents how to obtain input values for tool parameters,
+    designed to avoid Union/Any type issues with some LLM backends (e.g., Ollama).
+    It provides three ways to specify input values: literal values, dictionary
+    references, or indexed references to previous tool outputs.
+
+    Attributes
+    ----------
+    kind : Literal["literal", "dict_ref", "index_ref"]
+        The type of input specification:
+        - "literal": Direct value provided inline (e.g., constants, strings)
+        - "dict_ref": Reference to a key in a dictionary output from a previous tool
+        - "index_ref": Reference to an element in a list/tuple output from a previous tool
+    value : Optional[Union[str, int, float, bool, List[Any], Dict[str, Any]]]
+        The actual value when kind is "literal". Must be None for "dict_ref" and
+        "index_ref" kinds.
+    from_tool_id : Optional[str]
+        The unique ID of the source tool when kind is "dict_ref" or "index_ref".
+        Must be None for "literal" kind. This establishes data dependencies between
+        tool invocations.
+    key : Optional[str]
+        The dictionary key to extract when kind is "dict_ref". Must be None for
+        "literal" and "index_ref" kinds.
+    index : Optional[int]
+        The list/tuple index to extract when kind is "index_ref". Must be None for
+        "literal" and "dict_ref" kinds.
+
+    Examples
+    --------
+    Literal input:
+    >>> input_spec = ToolInputSafe(
+    ...     kind="literal",
+    ...     value=7000.0
+    ... )
+
+    Dictionary reference:
+    >>> input_spec = ToolInputSafe(
+    ...     kind="dict_ref",
+    ...     from_tool_id="550e8400-e29b-41d4-a716-446655440000",
+    ...     key="semi_major_axis"
+    ... )
+
+    Index reference:
+    >>> input_spec = ToolInputSafe(
+    ...     kind="index_ref",
+    ...     from_tool_id="550e8400-e29b-41d4-a716-446655440000",
+    ...     index=0
+    ... )
+
+    Notes
+    -----
+    This schema is used within ToolDataPydantic to specify tool inputs with
+    explicit data dependencies, enabling the execution engine to resolve
+    parameter values from previous tool outputs.
+
+    See Also
+    --------
+    ToolDataPydantic : Uses ToolInputSafe to define tool invocation inputs.
+    """
+
+    kind: Literal["literal", "dict_ref", "index_ref"] = Field(
+        ..., description="Type of input"
+    )
+    value: Optional[Union[str, int, float, bool, List[Any], Dict[str, Any]]] = Field(
+        None, description="Value if kind is literal"
+    )
+    from_tool_id: Optional[str] = Field(
+        None, description="Tool ID if kind is dict_ref or index_ref"
+    )
+    key: Optional[str] = Field(None, description="Key if kind is dict_ref")
+    index: Optional[int] = Field(None, description="Index if kind is index_ref")
 
 
 class ToolDataPydantic(BaseModel):
-    """
-    Pydantic model representing a single tool invocation in the execution plan.
+    """Schema representing a single tool invocation in the execution plan.
 
-    This model defines the schema for a planned tool call, including the tool's
-    unique identifier, name, and input parameter specifications. It ensures that
-    the LLM generates valid, structured tool invocation plans with explicit
-    data dependencies.
+    This model defines the complete specification for a planned tool call, including
+    the tool's unique identifier, name, and input parameter specifications. It ensures
+    that the LLM generates valid, structured tool invocation plans with explicit
+    data dependencies that can be resolved by the execution engine.
+
+    Each tool invocation is uniquely identified and contains all information needed
+    to execute the tool with the correct parameters, either from literal values or
+    from outputs of previously executed tools.
 
     Attributes
     ----------
     tool_id : str
-        A unique identifier for this tool invocation, generated using `uuid_generator`.
-        Must be unique across all tool calls in the workflow to enable dependency
-        tracking and result referencing.
+        A unique identifier for this specific tool invocation, generated using the
+        `uuid_generator` tool. Must be globally unique across all tool calls in the
+        entire workflow to enable unambiguous dependency tracking and result referencing.
+        Format: UUID4 string (e.g., "550e8400-e29b-41d4-a716-446655440000").
     tool_name : str
         The exact name of the tool as registered in the tool registry. Must match
-        a key in the available tools dictionary.
-    inputs : Dict[str, ToolInput]
+        a key in the available tools dictionary. Case-sensitive. Examples:
+        "keplerian_to_cartesian", "hohmann_transfer", "plot_orbit_3d".
+    inputs : Dict[str, ToolInputSafe]
         A dictionary mapping parameter names to their input specifications. Each
-        key is a parameter name expected by the tool, and each value is a ToolInput
-        object specifying how to obtain the parameter value:
-        - LiteralInput: Direct value (e.g., numerical constant, string)
-        - DictRefInput: Reference to a dictionary output from a previous tool
-        - IndexRefInput: Reference to a list/tuple element from a previous tool
+        key is a parameter name expected by the tool (must match the tool's function
+        signature), and each value is a ToolInputSafe object specifying how to obtain
+        the parameter value:
+
+        - kind="literal": Direct value (e.g., numerical constant, string, boolean)
+        - kind="dict_ref": Reference to a dictionary output from a previous tool
+        - kind="index_ref": Reference to a list/tuple element from a previous tool
+
+        All required parameters for the tool must be present in this dictionary.
 
     Examples
     --------
-    >>> from app.orbitqa.state import ToolInput
+    Simple tool call with literal inputs:
     >>> tool_call = ToolDataPydantic(
     ...     tool_id="550e8400-e29b-41d4-a716-446655440000",
-    ...     tool_name="compute_hohmann_transfer",
+    ...     tool_name="hohmann_transfer",
     ...     inputs={
-    ...         "r1": {"type": "literal", "value": 7000},
-    ...         "r2": {"type": "literal", "value": 42164},
-    ...         "body": {"type": "literal", "value": "Earth"}
+    ...         "r_1_vec": {"kind": "literal", "value": [7000, 0, 0]},
+    ...         "v_1_vec": {"kind": "literal", "value": [0, 7.5, 0]},
+    ...         "r_2": {"kind": "literal", "value": 42164},
+    ...         "attractor": {"kind": "literal", "value": "earth"}
     ...     }
     ... )
 
-    With dependencies:
+    Tool call with dependency on previous tool output:
     >>> tool_call_2 = ToolDataPydantic(
     ...     tool_id="660f9511-f3ac-52e5-b827-557766551111",
-    ...     tool_name="plot_transfer_orbit",
+    ...     tool_name="plot_orbit_3d",
     ...     inputs={
-    ...         "orbit_data": {
-    ...             "type": "dict_ref",
-    ...             "tool_id": "550e8400-e29b-41d4-a716-446655440000",
-    ...             "key": "transfer_orbit"
+    ...         "r_vec": {
+    ...             "kind": "index_ref",
+    ...             "from_tool_id": "550e8400-e29b-41d4-a716-446655440000",
+    ...             "index": 0
+    ...         },
+    ...         "v_vec": {
+    ...             "kind": "index_ref",
+    ...             "from_tool_id": "550e8400-e29b-41d4-a716-446655440000",
+    ...             "index": 1
+    ...         },
+    ...         "attractor": {"kind": "literal", "value": "earth"},
+    ...         "color": {"kind": "literal", "value": "red"}
+    ...     }
+    ... )
+
+    Dictionary reference from previous tool:
+    >>> tool_call_3 = ToolDataPydantic(
+    ...     tool_id="770e8511-f4bd-63f6-c938-668877662222",
+    ...     tool_name="calculate_period",
+    ...     inputs={
+    ...         "semi_major_axis": {
+    ...             "kind": "dict_ref",
+    ...             "from_tool_id": "550e8400-e29b-41d4-a716-446655440000",
+    ...             "key": "a"
     ...         }
     ...     }
     ... )
@@ -65,27 +170,43 @@ class ToolDataPydantic(BaseModel):
     This model is used with LangChain's `with_structured_output` to constrain
     the LLM's tool planning output to a valid, parseable format.
 
-    The tool_id must be generated using `uuid_generator` to ensure uniqueness
-    across the entire workflow execution.
+    The tool_id MUST be generated using the `uuid_generator` tool to ensure
+    uniqueness across the entire workflow execution. Manual or reused IDs will
+    cause dependency resolution failures.
+
+    The execution engine uses this schema to:
+    1. Validate that all required parameters are specified
+    2. Resolve dependencies by looking up outputs from previous tool_ids
+    3. Execute tools in the correct order
+    4. Store results keyed by tool_id for future references
+
+    See Also
+    --------
+    ToolInputSafe : Schema for individual input specifications.
+    ToolSeqList : Container for the complete sequence of tool invocations.
+    uuid_generator : Tool for generating unique tool IDs.
     """
 
     tool_id: str = Field(..., description="A unique tool id")
     tool_name: str = Field(..., description="Name of the tool")
 
     # str = param name & ToolInput = how to get value for that param
-    inputs: Dict[str, ToolInput] = Field(
+    inputs: Dict[str, ToolInputSafe] = Field(
         ...,
         description="From where the value of the inputs of the tool must be found out. Key of the dictionary is the input name (as it is) and that specific key's corresponding value is from where the input value can get",
     )
 
 
 class ToolSeqList(BaseModel):
-    """
-    Pydantic model for structured output containing a sequence of tool invocations.
+    """Container for an ordered sequence of tool invocations in the execution plan.
 
     This model defines the top-level schema for the LLM's tool planning response.
     It ensures that the model outputs a valid list of tool invocations in the
-    correct execution order, respecting data dependencies.
+    correct execution order, with all data dependencies properly resolved.
+
+    The sequence represents a complete execution plan that transforms the user's
+    request into a series of concrete tool calls. The execution engine will invoke
+    tools sequentially in the exact order specified in this list.
 
     Attributes
     ----------
@@ -93,34 +214,77 @@ class ToolSeqList(BaseModel):
         An ordered list of tool invocation specifications. Tools are executed
         sequentially in the order they appear in this list. Each element is a
         ToolDataPydantic object containing:
-        - A unique tool_id (generated via uuid_generator)
-        - The tool_name from the registry
-        - Input specifications with dependencies resolved
+
+        - A unique tool_id (generated via uuid_generator tool)
+        - The tool_name from the registry (exact match required)
+        - Input specifications with dependencies explicitly resolved
+
+        The list order is critical for correctness:
+        - Tools must be ordered such that all dependencies are satisfied
+        - A tool referencing another tool's output must appear AFTER that tool
+        - No circular dependencies are allowed
+        - The execution engine validates dependencies before execution
 
     Notes
     -----
     The sequence order is critical:
-    - Tools must be ordered such that all dependencies are satisfied
-    - A tool referencing another tool's output must appear AFTER that tool
-    - The execution engine will invoke tools in the exact order specified
+    - Tools are executed in the exact order specified (index 0 first, then 1, etc.)
+    - A tool at index i can only reference outputs from tools at indices 0 to i-1
+    - Forward references (referencing a tool that hasn't executed yet) will cause errors
+    - The execution engine does NOT reorder tools - the LLM must plan correctly
 
-    An empty list indicates that the request cannot be fulfilled with available tools.
+    An empty list (tool_seq_list=[]) indicates that:
+    - The request cannot be fulfilled with available tools, OR
+    - The request requires capabilities outside the system's scope, OR
+    - The request is ambiguous and requires clarification
+
+    The execution engine handles this list by:
+    1. Validating all tool names exist in the registry
+    2. Checking that all tool_ids are unique
+    3. Verifying that all dependencies reference previous tools
+    4. Executing tools sequentially, storing outputs by tool_id
+    5. Resolving input references before each tool execution
 
     Examples
     --------
+    Simple sequence with literal inputs:
+    >>> tool_sequence = ToolSeqList(tool_seq_list=[
+    ...     ToolDataPydantic(
+    ...         tool_id="550e8400-e29b-41d4-a716-446655440000",
+    ...         tool_name="orbit_period",
+    ...         inputs={
+    ...             "a": {"kind": "literal", "value": 7000},
+    ...             "mu": {"kind": "literal", "value": 398600.4418}
+    ...         }
+    ...     )
+    ... ])
+
+    Multi-tool sequence with dependencies:
     >>> tool_sequence = ToolSeqList(tool_seq_list=[
     ...     ToolDataPydantic(
     ...         tool_id="uuid-1",
-    ...         tool_name="compute_hohmann_transfer",
-    ...         inputs={"r1": {"type": "literal", "value": 7000},
-    ...                 "r2": {"type": "literal", "value": 42164}}
+    ...         tool_name="keplerian_to_cartesian",
+    ...         inputs={"a": {"kind": "literal", "value": 7000},
+    ...                 "ecc": {"kind": "literal", "value": 0.01},
+    ...                 "inc": {"kind": "literal", "value": 45},
+    ...                 "raan": {"kind": "literal", "value": 0},
+    ...                 "argp": {"kind": "literal", "value": 0},
+    ...                 "nu": {"kind": "literal", "value": 0},
+    ...                 "attractor": {"kind": "literal", "value": "earth"}}
     ...     ),
     ...     ToolDataPydantic(
     ...         tool_id="uuid-2",
-    ...         tool_name="plot_transfer",
-    ...         inputs={"transfer_data": {"type": "dict_ref",
-    ...                                     "tool_id": "uuid-1",
-    ...                                     "key": "transfer_orbit"}}
+    ...         tool_name="plot_orbit_3d",
+    ...         inputs={
+    ...             "r_vec": {"kind": "index_ref",
+    ...                       "from_tool_id": "uuid-1",
+    ...                       "index": 0},
+    ...             "v_vec": {"kind": "index_ref",
+    ...                       "from_tool_id": "uuid-1",
+    ...                       "index": 1},
+    ...             "attractor": {"kind": "literal", "value": "earth"},
+    ...             "color": {"kind": "literal", "value": "red"}
+    ...         }
     ...     )
     ... ])
 
@@ -130,6 +294,7 @@ class ToolSeqList(BaseModel):
     See Also
     --------
     ToolDataPydantic : Schema for individual tool invocations.
+    tool_selector : Function that generates instances of this model.
     """
 
     tool_seq_list: List[ToolDataPydantic] = Field(
@@ -319,6 +484,77 @@ DEPENDENCY RULES
 - DictRefInput: use when referencing dictionary outputs.
 - IndexRefInput: use when referencing list or tuple outputs.
 - Every dependency MUST reference a valid earlier tool_id.
+
+--------------------
+EXAMPLE OUTPUT (REFERENCE ONLY)
+--------------------
+
+The following is an EXAMPLE of a valid tool sequence.
+It is provided ONLY to demonstrate the required structure and formatting.
+The UUIDs in this example are only for example purpose and you must generate unique UUIDs using 'uuid_generator' tool provided to you.
+
+{
+  "tool_seq_list": [
+    {
+      "tool_id": "c1a2f3b4-1111-2222-3333-444455556666",
+      "tool_name": "keplerian_to_cartesian",
+      "inputs": {
+        "a": {
+          "kind": "literal",
+          "value": 7000
+        },
+        "ecc": {
+          "kind": "literal",
+          "value": 0.001
+        },
+        "inc": {
+          "kind": "literal",
+          "value": 98.7
+        },
+        "raan": {
+          "kind": "literal",
+          "value": 0.0
+        },
+        "argp": {
+          "kind": "literal",
+          "value": 0.0
+        },
+        "nu": {
+          "kind": "literal",
+          "value": 0.0
+        },
+        "attractor": {
+          "kind": "literal",
+          "value": "earth"
+        }
+      }
+    },
+    {
+      "tool_id": "d7e8f9a0-7777-8888-9999-000011112222",
+      "tool_name": "plot_orbit_3d",
+      "inputs": {
+        "r_vec": {
+          "kind": "index_ref",
+          "from_tool_id": "c1a2f3b4-1111-2222-3333-444455556666",
+          "index": 0
+        },
+        "v_vec": {
+          "kind": "index_ref",
+          "from_tool_id": "c1a2f3b4-1111-2222-3333-444455556666",
+          "index": 1
+        },
+        "attractor": {
+          "kind": "literal",
+          "value": "Earth"
+        },
+        "color": {
+          "kind": "literal",
+          "value": "red"
+        }
+      }
+    }
+  ]
+}
 
 --------------------
 FAILURE RULE

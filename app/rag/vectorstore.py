@@ -488,7 +488,7 @@ class VectorStore:
         upsert_lesser_batch: bool = True,
         show_progress: bool = True,
         show_progress_after_batches: int = 20,
-    ):
+    ) -> int:
         """
         Upsert vectors from an iterator of ChunkDict objects in batches.
 

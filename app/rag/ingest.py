@@ -263,56 +263,6 @@ def ingest_directory(
     chunk_size: int = 500,
     overlap: int = 100,
 ) -> Iterator[ChunkDict]:
-    """
-    Recursively ingest all PDF files from a directory and yield text chunks.
-
-    Traverses a directory recursively, processing all PDF files found and
-    yielding their preprocessed, chunked content with metadata. Hidden files,
-    symlinks, and non-PDF files are skipped.
-
-    Parameters
-    ----------
-    dir_path : str
-        Path to the directory to ingest.
-    batch_size : int, optional
-        Number of pages to batch together before chunking. Default is 5.
-    show_warn : bool, optional
-        Whether to show warnings for extraction errors. Default is True.
-    chunk_size : int, optional
-        Maximum size of each text chunk in characters. Default is 500.
-    overlap : int, optional
-        Number of overlapping characters between chunks. Default is 100.
-
-    Yields
-    ------
-    ChunkDict
-        A dictionary with 'chunk' (text) and 'metadata' keys for each chunk
-        from all PDF files in the directory tree.
-
-    Raises
-    ------
-    TypeError
-        If dir_path is not a string.
-    FileNotFoundError
-        If the directory does not exist.
-
-    Notes
-    -----
-    - PDF filenames are normalized by converting to lowercase and replacing
-      spaces, hyphens, and periods with underscores.
-    - The function processes directories recursively.
-    - Currently only supports PDF files; other file types are ignored.
-
-    Examples
-    --------
-    >>> for chunk_dict in ingest_directory("./documents"):
-    ...     print(f"Source: {chunk_dict['metadata']['source']}")
-    ...     print(f"Chunk length: {len(chunk_dict['chunk'])}")
-    Source: document_1
-    Chunk length: 485
-    Source: document_2
-    Chunk length: 512
-    """
     if not isinstance(dir_path, str):
         raise TypeError(f"Expected type of dir_path is str. Got {type(dir_path)}.")
 
@@ -342,7 +292,12 @@ def ingest_directory(
                 )
 
                 yield from ingest_and_chunk_pdf(
-                    entry.path, entry_name, batch_size, show_warn, chunk_size, overlap
+                    entry.path,
+                    entry_name,
+                    batch_size,
+                    show_warn,
+                    chunk_size,
+                    overlap,
                 )
             else:
                 continue

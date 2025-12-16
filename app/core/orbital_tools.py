@@ -6,16 +6,314 @@ import pytz
 from astropy import units as u
 from astropy.time import TimeDelta
 from astropy.units import Quantity
+from langchain.tools import tool
 from poliastro.bodies import Body, Earth
 from poliastro.iod.vallado import lambert
 from poliastro.maneuver import Maneuver
 from poliastro.twobody import Orbit
 from poliastro.twobody.propagation import ValladoPropagator
+from pydantic import BaseModel, Field
 from sgp4.api import SGP4_ERRORS, Satrec
 
-from app.core import body_from_str, datetime_to_jd, non_quantity_to_Quantity
+from app.core.utils import body_from_str, datetime_to_jd, non_quantity_to_Quantity
 
 
+class KeplerianToCartesianSchema(BaseModel):
+    """Input schema for the keplerian_to_cartesian tool.
+
+    Defines the required parameters for converting Keplerian orbital elements
+    to Cartesian position and velocity vectors.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    a: float | Quantity = Field(description="Semi-major axis of the orbit")
+    ecc: float | Quantity = Field(
+        description="Eccentricity of the orbit (dimensionless)"
+    )
+    inc: float | Quantity = Field(description="Inclination of the orbit")
+    raan: float | Quantity = Field(
+        description="Right ascension of the ascending node (RAAN)"
+    )
+    argp: float | Quantity = Field(description="Argument of periapsis")
+    nu: float | Quantity = Field(description="True anomaly")
+    attractor: str | Body = Field(
+        default="earth",
+        description="The central body around which the orbit is defined",
+    )
+
+
+class CartesianToKeplerianSchema(BaseModel):
+    """Input schema for the cartesian_to_keplerian tool.
+
+    Defines the required parameters for converting Cartesian position and
+    velocity vectors to Keplerian orbital elements.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in kilometers"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class HohmannTransferSchema(BaseModel):
+    """Input schema for the hohmann_transfer tool.
+
+    Defines the required parameters for computing delta-v requirements for
+    a Hohmann transfer between two circular orbits.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial position vector [x, y, z] in km"
+    )
+    v_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial velocity vector [vx, vy, vz] in km/s"
+    )
+    r_2: int | float | Quantity = Field(description="Final orbital radius in km")
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class HohmannTimeOfFlightSchema(BaseModel):
+    """Input schema for the hohmann_time_of_flight tool.
+
+    Defines the required parameters for calculating the time of flight for
+    a Hohmann transfer between two circular orbits.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial position vector [x, y, z] in km"
+    )
+    v_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial velocity vector [vx, vy, vz] in km/s"
+    )
+    r_2: int | float | Quantity = Field(description="Final orbital radius in km")
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class BiellipticTransferSchema(BaseModel):
+    """Input schema for the bielliptic_transfer tool.
+
+    Defines the required parameters for computing delta-v requirements for
+    a bi-elliptic transfer between two circular orbits via an intermediate apoapsis.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial position vector [x, y, z] in km"
+    )
+    v_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial velocity vector [vx, vy, vz] in km/s"
+    )
+    r_b: int | float | Quantity = Field(
+        description="Intermediate apoapsis radius in km"
+    )
+    r_2: int | float | Quantity = Field(description="Final orbital radius in km")
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class PlaneChangeSchema(BaseModel):
+    """Input schema for the plane_change tool.
+
+    Defines the required parameters for calculating the delta-v required
+    for a simple plane change maneuver.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    v: list | np.ndarray | Quantity = Field(
+        description="Velocity vector or magnitude in km/s"
+    )
+    delta_i: int | float | Quantity = Field(
+        description="Change in inclination angle in degrees"
+    )
+
+
+class LambertSolverSchema(BaseModel):
+    """Input schema for the lambert_solver tool.
+
+    Defines the required parameters for solving Lambert's problem to find
+    velocity vectors for orbital transfer between two positions.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_1_vec: list | np.ndarray | Quantity = Field(
+        description="Initial position vector [x, y, z] in km"
+    )
+    r_2_vec: list | np.ndarray | Quantity = Field(
+        description="Final position vector [x, y, z] in km"
+    )
+    tof: int | float | Quantity = Field(description="Time of flight in seconds")
+    prograde: bool = Field(
+        default=True, description="True for prograde (short way) trajectory"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class UniversalKeplerSchema(BaseModel):
+    """Input schema for the universal_kepler tool.
+
+    Defines the required parameters for propagating an orbit using the
+    universal Kepler propagator.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Initial position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Initial velocity vector [vx, vy, vz] in km/s"
+    )
+    dt: int | float | timedelta | TimeDelta = Field(
+        description="Time increment in seconds (positive=forward, negative=backward)"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class SGP4PropagateSchema(BaseModel):
+    """Input schema for the sgp4_propagate tool.
+
+    Defines the required parameters for propagating a satellite orbit using
+    the SGP4 model from Two-Line Element (TLE) data.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    line_1: str = Field(description="First line of TLE (Two-Line Element) set")
+    line_2: str = Field(description="Second line of TLE set")
+    at_datetime: str | datetime = Field(
+        description="Target datetime as string 'YYYY-MM-DD HH:MM:SS' or datetime object (UTC)"
+    )
+
+
+class OrbitPeriodSchema(BaseModel):
+    """Input schema for the orbit_period tool.
+
+    Defines the required parameters for calculating the orbital period
+    of a two-body orbit using Kepler's Third Law.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    a: int | float = Field(description="Semi-major axis in kilometers")
+    mu: int | float = Field(description="Gravitational parameter (GM) in km³/s²")
+
+
+class MeanMotionSchema(BaseModel):
+    """Input schema for the mean_motion tool.
+
+    Defines the required parameters for calculating the mean motion
+    (average angular speed) of an orbit.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    a: int | float = Field(description="Semi-major axis in kilometers")
+    mu: int | float = Field(description="Gravitational parameter (GM) in km³/s²")
+
+
+class SpecificEnergySchema(BaseModel):
+    """Input schema for the specific_energy tool.
+
+    Defines the required parameters for calculating the specific orbital
+    energy (total energy per unit mass) of an orbit.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class SpecificAngularMomentumSchema(BaseModel):
+    """Input schema for the specific_angular_momentum tool.
+
+    Defines the required parameters for calculating the specific angular
+    momentum vector (angular momentum per unit mass) of an orbit.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+
+
+class EccentricityVectorSchema(BaseModel):
+    """Input schema for the eccentricity_vector tool.
+
+    Defines the required parameters for calculating the eccentricity vector,
+    which points toward periapsis and has magnitude equal to orbital eccentricity.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class TrueAnomalyFromVectorsSchema(BaseModel):
+    """Input schema for the true_anomaly_from_vectors tool.
+
+    Defines the required parameters for calculating the true anomaly
+    (angular position along the orbit) from position and velocity vectors.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class RAANFromVectorsSchema(BaseModel):
+    """Input schema for the raan_from_vectors tool.
+
+    Defines the required parameters for calculating the Right Ascension of
+    the Ascending Node (RAAN) from position and velocity vectors.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+class ArgumentOfPeriapsisSchema(BaseModel):
+    """Input schema for the argument_of_periapsis tool.
+
+    Defines the required parameters for calculating the argument of periapsis
+    (angle from ascending node to periapsis) from position and velocity vectors.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+    r_vec: list | np.ndarray | Quantity = Field(
+        description="Position vector [x, y, z] in km"
+    )
+    v_vec: list | np.ndarray | Quantity = Field(
+        description="Velocity vector [vx, vy, vz] in km/s"
+    )
+    attractor: str | Body = Field(default="earth", description="The central body")
+
+
+@tool(args_schema=KeplerianToCartesianSchema)
 def keplerian_to_cartesian(
     a: float | Quantity,
     ecc: float | Quantity,
@@ -122,18 +420,19 @@ def keplerian_to_cartesian(
     if isinstance(attractor, str):
         attractor = body_from_str(attractor.lower())
 
-    a = non_quantity_to_Quantity(a, u.km)
-    ecc = non_quantity_to_Quantity(ecc, u.one)
-    inc = non_quantity_to_Quantity(inc, u.deg)
-    raan = non_quantity_to_Quantity(raan, u.deg)
-    argp = non_quantity_to_Quantity(argp, u.deg)
-    nu = non_quantity_to_Quantity(nu, u.deg)
+    a = non_quantity_to_Quantity(a, "km")
+    ecc = non_quantity_to_Quantity(ecc, "one")
+    inc = non_quantity_to_Quantity(inc, "deg")
+    raan = non_quantity_to_Quantity(raan, "deg")
+    argp = non_quantity_to_Quantity(argp, "deg")
+    nu = non_quantity_to_Quantity(nu, "deg")
 
     orbit = Orbit.from_classical(attractor, a, ecc, inc, raan, argp, nu)
 
     return orbit.r.value, orbit.v.value
 
 
+@tool(args_schema=CartesianToKeplerianSchema)
 def cartesian_to_keplerian(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -212,8 +511,8 @@ def cartesian_to_keplerian(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 
@@ -227,6 +526,7 @@ def cartesian_to_keplerian(
     )
 
 
+@tool(args_schema=HohmannTransferSchema)
 def hohmann_transfer(
     r_1_vec: list | np.ndarray | Quantity,
     v_1_vec: list | np.ndarray | Quantity,
@@ -316,9 +616,9 @@ def hohmann_transfer(
         )
 
     attractor = body_from_str(attractor)
-    r_1_vec = non_quantity_to_Quantity(r_1_vec, u.km)
-    v_1_vec = non_quantity_to_Quantity(v_1_vec, u.km / u.s)
-    r_2 = non_quantity_to_Quantity(r_2, u.km)
+    r_1_vec = non_quantity_to_Quantity(r_1_vec, "km")
+    v_1_vec = Quantity(np.asarray(v_1_vec), u.km / u.s)
+    r_2 = non_quantity_to_Quantity(r_2, "km")
 
     orbit_1 = Orbit.from_vectors(attractor, r_1_vec, v_1_vec)
     man = Maneuver.hohmann(orbit_1, r_2)
@@ -326,6 +626,7 @@ def hohmann_transfer(
     return (man[0][1].value, man[1][1].value, man[0][1].value + man[1][1].value)
 
 
+@tool(args_schema=HohmannTimeOfFlightSchema)
 def hohmann_time_of_flight(
     r_1_vec: list | np.ndarray | Quantity,
     v_1_vec: list | np.ndarray | Quantity,
@@ -407,9 +708,9 @@ def hohmann_time_of_flight(
         )
 
     attractor = body_from_str(attractor)
-    r_1_vec = non_quantity_to_Quantity(r_1_vec, u.km)
-    v_1_vec = non_quantity_to_Quantity(v_1_vec, u.km / u.s)
-    r_2 = non_quantity_to_Quantity(r_2, u.km)
+    r_1_vec = non_quantity_to_Quantity(r_1_vec, "km")
+    v_1_vec = Quantity(np.asarray(v_1_vec), u.km / u.s)
+    r_2 = non_quantity_to_Quantity(r_2, "km")
 
     orbit_1 = Orbit.from_vectors(attractor, r_1_vec, v_1_vec)
     man = Maneuver.hohmann(orbit_1, r_2)
@@ -417,6 +718,7 @@ def hohmann_time_of_flight(
     return man.get_total_time().value
 
 
+@tool(args_schema=BiellipticTransferSchema)
 def bielliptic_transfer(
     r_1_vec: list | np.ndarray | Quantity,
     v_1_vec: list | np.ndarray | Quantity,
@@ -526,10 +828,10 @@ def bielliptic_transfer(
         )
 
     attractor = body_from_str(attractor)
-    r_1_vec = non_quantity_to_Quantity(r_1_vec, u.km)
-    v_1_vec = non_quantity_to_Quantity(v_1_vec, u.km / u.s)
-    r_b = non_quantity_to_Quantity(r_b, u.km)
-    r_2 = non_quantity_to_Quantity(r_2, u.km)
+    r_1_vec = non_quantity_to_Quantity(r_1_vec, "km")
+    v_1_vec = Quantity(np.asarray(v_1_vec), u.km / u.s)
+    r_b = non_quantity_to_Quantity(r_b, "km")
+    r_2 = non_quantity_to_Quantity(r_2, "km")
 
     orbit_1 = Orbit.from_vectors(attractor, r_1_vec, v_1_vec)
     man = Maneuver.bielliptic(orbit_1, r_b, r_2)
@@ -543,6 +845,7 @@ def bielliptic_transfer(
     )
 
 
+@tool(args_schema=PlaneChangeSchema)
 def plane_change(v: list | np.ndarray | Quantity, delta_i: int | float | Quantity):
     """
     Calculate the delta-v required for a simple plane change maneuver.
@@ -615,12 +918,13 @@ def plane_change(v: list | np.ndarray | Quantity, delta_i: int | float | Quantit
             f"Expected type of delta_i is either int or float or astropy.units.Quantity. Got {type(delta_i)}."
         )
 
-    v = non_quantity_to_Quantity(v, u.km / u.s)
-    delta_i = non_quantity_to_Quantity(delta_i, u.deg)
+    v = Quantity(np.asarray(v), u.km / u.s)
+    delta_i = non_quantity_to_Quantity(delta_i, "deg")
 
     return 2 * v * np.sin(delta_i / 2)
 
 
+@tool(args_schema=LambertSolverSchema)
 def lambert_solver(
     r_1_vec: list | np.ndarray | Quantity,
     r_2_vec: list | np.ndarray | Quantity,
@@ -726,15 +1030,16 @@ def lambert_solver(
 
     attractor = body_from_str(attractor)
     k = attractor.k
-    r_1_vec = non_quantity_to_Quantity(r_1_vec, u.km)
-    r_2_vec = non_quantity_to_Quantity(r_2_vec, u.km)
-    tof = non_quantity_to_Quantity(tof, u.s)
+    r_1_vec = non_quantity_to_Quantity(r_1_vec, "km")
+    r_2_vec = non_quantity_to_Quantity(r_2_vec, "km")
+    tof = non_quantity_to_Quantity(tof, "s")
 
     v_1, v_2 = lambert(k, r_1_vec, r_2_vec, tof, prograde=prograde)
 
     return v_1.value, v_2.value
 
 
+@tool(args_schema=UniversalKeplerSchema)
 def universal_kepler(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -839,8 +1144,8 @@ def universal_kepler(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     if isinstance(dt, (int, float)):
         dt = TimeDelta(timedelta(seconds=dt))
@@ -853,6 +1158,7 @@ def universal_kepler(
     return new_orbit.r.value, new_orbit.v.value
 
 
+@tool(args_schema=SGP4PropagateSchema)
 def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
     """
     Propagate a satellite orbit using the SGP4 model from TLE data.
@@ -954,6 +1260,7 @@ def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
         return np.array(r), np.array(v)
 
 
+@tool(args_schema=OrbitPeriodSchema)
 def orbit_period(a: int | float, mu: int | float) -> float:
     """
     Calculate the orbital period of a two-body orbit.
@@ -1023,6 +1330,7 @@ def orbit_period(a: int | float, mu: int | float) -> float:
     return 2 * pi * sqrt(a**3 / mu)
 
 
+@tool(args_schema=MeanMotionSchema)
 def mean_motion(a: int | float, mu: int | float) -> float:
     """
     Calculate the mean motion of an orbit.
@@ -1084,6 +1392,7 @@ def mean_motion(a: int | float, mu: int | float) -> float:
     return sqrt(mu / a**3)
 
 
+@tool(args_schema=SpecificEnergySchema)
 def specific_energy(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -1160,14 +1469,15 @@ def specific_energy(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 
     return orbit.energy().value
 
 
+@tool(args_schema=SpecificAngularMomentumSchema)
 def specific_angular_momentum(
     r_vec: list | np.ndarray | Quantity, v_vec: list | np.ndarray | Quantity
 ) -> float:
@@ -1233,12 +1543,13 @@ def specific_angular_momentum(
             f"Expected type of v_vec is either list or ndarray or Quantity. Got {type(v_vec)}"
         )
 
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     return np.cross(r_vec, v_vec)
 
 
+@tool(args_schema=EccentricityVectorSchema)
 def eccentricity_vector(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -1315,14 +1626,15 @@ def eccentricity_vector(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 
     return orbit.e_vec.value
 
 
+@tool(args_schema=TrueAnomalyFromVectorsSchema)
 def true_anomaly_from_vectors(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -1398,14 +1710,15 @@ def true_anomaly_from_vectors(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 
     return orbit.nu.value
 
 
+@tool(args_schema=RAANFromVectorsSchema)
 def raan_from_vectors(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -1480,14 +1793,15 @@ def raan_from_vectors(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 
     return orbit.raan.value
 
 
+@tool(args_schema=ArgumentOfPeriapsisSchema)
 def argument_of_periapsis(
     r_vec: list | np.ndarray | Quantity,
     v_vec: list | np.ndarray | Quantity,
@@ -1560,8 +1874,8 @@ def argument_of_periapsis(
         )
 
     attractor = body_from_str(attractor)
-    r_vec = non_quantity_to_Quantity(r_vec, u.km)
-    v_vec = non_quantity_to_Quantity(v_vec, u.km / u.s)
+    r_vec = non_quantity_to_Quantity(r_vec, "km")
+    v_vec = Quantity(np.asarray(v_vec), u.km / u.s)
 
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 

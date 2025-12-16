@@ -309,4 +309,4 @@ System warnings:
     mutations["plots"] = state["plots"]
     mutations["warnings"] = state["warnings"]
 
-    return mutations
+    return {"final_response": mutations}
