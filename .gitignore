@@ -13,4 +13,7 @@ documents/
 test_docs/
 
 # testing
-test_main.py
+test_main*.py
+
+# log files
+*.log

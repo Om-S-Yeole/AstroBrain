@@ -1,5 +1,4 @@
 import os
-import warnings
 from pathlib import Path
 from typing import Iterator, Tuple
 
@@ -9,6 +8,9 @@ from app.rag._classes import ChunkDict, MetaDataDict, PDFBatch
 from app.rag._utils import prepare_metadata
 from app.rag.chunker import chunk_text
 from app.rag.preprocess import preprocess_batch
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def stream_pdf_pages(path: str, show_warn: bool = True) -> Iterator[Tuple[int, str]]:
@@ -55,9 +57,13 @@ def stream_pdf_pages(path: str, show_warn: bool = True) -> Iterator[Tuple[int, s
 
         try:
             text = page.extract_text(extraction_mode="plain") or ""
-        except Exception as e:
+        except Exception:
             if show_warn:
-                warnings.warn(f"Unable to extract text from page {page_no}: {e}")
+                logger.warning(
+                    "Unable to extract text from page",
+                    extra={"page_no": page_no},
+                    exc_info=True,
+                )
             text = ""
 
         yield page_no, text
@@ -263,6 +269,49 @@ def ingest_directory(
     chunk_size: int = 500,
     overlap: int = 100,
 ) -> Iterator[ChunkDict]:
+    """
+    Recursively ingest all PDF files from a directory and yield chunked text.
+
+    Scans the specified directory and all subdirectories for PDF files,
+    processing each one through the ingestion and chunking pipeline.
+    Skips hidden files (starting with '.'), symbolic links, and non-PDF files.
+
+    Parameters
+    ----------
+    dir_path : str
+        Path to the directory to scan for PDF files.
+    batch_size : int, optional
+        Number of pages to batch together before chunking. Default is 5.
+    show_warn : bool, optional
+        Whether to show warnings for extraction errors. Default is True.
+    chunk_size : int, optional
+        Maximum size of each text chunk in characters. Default is 500.
+    overlap : int, optional
+        Number of overlapping characters between chunks. Default is 100.
+
+    Yields
+    ------
+    ChunkDict
+        A dictionary with 'chunk' (text) and 'metadata' keys for each
+        chunk from all PDF files found in the directory tree.
+
+    Raises
+    ------
+    TypeError
+        If dir_path is not a string.
+    FileNotFoundError
+        If the directory does not exist.
+
+    Examples
+    --------
+    >>> for chunk_dict in ingest_directory("./documents"):
+    ...     print(f"Source: {chunk_dict['metadata']['source']}")
+    ...     print(f"Chunk: {chunk_dict['chunk'][:50]}...")
+    Source: document1
+    Chunk: This is the beginning of the first chunk...
+    Source: document2
+    Chunk: Another document's content starts here...
+    """
     if not isinstance(dir_path, str):
         raise TypeError(f"Expected type of dir_path is str. Got {type(dir_path)}.")
 

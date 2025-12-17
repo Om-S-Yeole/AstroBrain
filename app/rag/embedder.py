@@ -1,6 +1,6 @@
+import logging
 import re
 import uuid
-import warnings
 from typing import Iterator, Literal, Tuple
 
 from langchain_core.embeddings import Embeddings
@@ -10,6 +10,8 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 
 from app.rag._classes import ChunkDict, MetaDataDict, VectorPayload
+
+logger = logging.getLogger(__name__)
 
 
 class Embedder:
@@ -254,8 +256,12 @@ class Embedder:
         dim = len(temp_embed)
 
         if dim != dimensions:
-            warnings.warn(
-                f"[WARNING] Expected dimensions of vectors passed by user are {dimensions}. But the embedding model forced the dimensions {dim}. Using the dimensions enforced by the embedding model."
+            logger.warning(
+                "Embedding model overrode user-provided dimensions",
+                extra={
+                    "expected_dimensions": dimensions,
+                    "enforced_dimensions": dim,
+                },
             )
 
         return model, model_type, dim

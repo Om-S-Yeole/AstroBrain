@@ -40,42 +40,24 @@ vectorstore = VectorStore(
     ),
 )
 
-# -------- Ideal -----------------
-# model_config_per_node = {
-#     "understand": {
-#         "model": "llama3.1:8b-instruct-q4_K_M",
-#         "temperature": 0.0,
-#     },
-#     "retrieve": {"model": "mistral:7b", "temperature": 0.4},
-#     "tool_selector": {
-#         "model": "llama3.1:8b-instruct-q4_K_M",
-#         "temperature": 0.0,
-#     },
-#     "draft_final_response": {
-#         "model": "mistral:7b",
-#         "temperature": 0.4,
-#     },
-# }
-
-# -------- For testing ---------------
-
 model_config_per_node = {
     "understand": {
-        "model": "llama3.1:8b-instruct-q4_K_M",
-        "temperature": 0.0,
+        "model": os.getenv("understad_model_name"),
+        "temperature": float(os.getenv("understand_model_temp")),
     },
-    "retrieve": {"model": "llama3.1:8b-instruct-q4_K_M", "temperature": 0.4},
+    "retrieve": {
+        "model": os.getenv("retrieve_model_name"),
+        "temperature": float(os.getenv("retrieve_model_temp")),
+    },
     "tool_selector": {
-        "model": "llama3.1:8b-instruct-q4_K_M",
-        "temperature": 0.0,
+        "model": os.getenv("tool_selector_model_name"),
+        "temperature": float(os.getenv("tool_selector_model_temp")),
     },
     "draft_final_response": {
-        "model": "llama3.1:8b-instruct-q4_K_M",
-        "temperature": 0.4,
+        "model": os.getenv("draft_final_response_model_name"),
+        "temperature": float(os.getenv("draft_final_response_model_temp")),
     },
 }
-
-# ------- For testing --------------
 
 models_per_nodes = {
     key: ChatOllama(**value) for key, value in model_config_per_node.items()
@@ -100,11 +82,16 @@ config = {
 # ---------------------------------------------------------
 
 
-# -------- For testing CLI purposes ----------------
+# -------- For CLI testing purposes ----------------
+
+
 async def get_user_clarification_cli(thread_id: str, res: OrbitQARes):
     clarification = input(f"{res['interrupt_message']} ")
 
     return clarification
+
+
+# --------------------------------------------------
 
 
 async def main(thread_id: str, user_req: str) -> OrbitQARes:

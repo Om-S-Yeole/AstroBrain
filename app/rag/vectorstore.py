@@ -1,10 +1,12 @@
-import warnings
+import logging
 from typing import Iterator, Literal
 
 from pinecone import Pinecone, ServerlessSpec, UpsertResponse
 
 from app.rag._classes import ChunkDict, VectorPayload
 from app.rag.embedder import Embedder
+
+logger = logging.getLogger(__name__)
 
 
 class VectorStore:
@@ -218,10 +220,14 @@ class VectorStore:
         self.hf_device = hf_device
         self.embedder_dimensions = self.embedder.dimensions
         if dimensions != self.embedder_dimensions:
-            warnings.warn(
-                f"Dimensions provided are {dimensions}, but dimensions according to embedder chosen are {self.embedder_dimensions}. Using embedder dimensions",
-                RuntimeWarning,
+            logger.warning(
+                "Embedding model overrode user-provided dimensions",
+                extra={
+                    "expected_dimensions": dimensions,
+                    "enforced_dimensions": self.embedder_dimensions,
+                },
             )
+
         self.dimensions = self.embedder_dimensions
         self.index_deletion_protection = index_deletion_protection
 
@@ -231,8 +237,9 @@ class VectorStore:
             raise ConnectionError(f"Unable to connect with Pinecone client. Error: {e}")
 
         if not self.pinecone_client.has_index(self.index_name):
-            print(
-                f"Index with name {self.index_name} do not exist. Creating this index..."
+            logger.info(
+                "Index does not exist; creating index",
+                extra={"index_name": self.index_name},
             )
             try:
                 self.pinecone_client.create_index(
@@ -245,7 +252,9 @@ class VectorStore:
                         "enabled" if self.index_deletion_protection else "disabled"
                     ),
                 )
-                print(f"Index with name {self.index_name} created successfully.")
+                logger.info(
+                    "Index created successfully", extra={"index_name": self.index_name}
+                )
             except Exception as e:
                 raise Exception(
                     f"Failed to create index with index name: {self.index_name}. Error: {e}"
@@ -253,7 +262,9 @@ class VectorStore:
 
         try:
             self.index = self.pinecone_client.Index(self.index_name)
-            print(f"Connected to index: {self.index_name} successfully.")
+            logger.info(
+                "Connected to index successfully", extra={"index_name": self.index_name}
+            )
         except Exception as e:
             raise ConnectionError(
                 f"Unable to connect with Pinecone index: {self.index_name}. Error: {e}"
@@ -457,7 +468,7 @@ class VectorStore:
                 try:
                     payload = next(payload_it)
                 except StopIteration:
-                    print("Iterator ended.")
+                    logger.debug("Iterator ended")
                     iterator_running = False
                     break
                 batch.append(payload)
@@ -470,11 +481,16 @@ class VectorStore:
                     self.upsert_batch(batch)
                     num_batches_inserted += 1
                 else:
-                    print("Empty batch can not be upserted")
+                    logger.warning("Empty batch can not be upserted")
 
-            if show_progress:
-                if num_batches_inserted % show_progress_after_batches == 0:
-                    print(f"{num_batches_inserted} batches upserted successfully.")
+            if (
+                show_progress
+                and num_batches_inserted % show_progress_after_batches == 0
+            ):
+                logger.info(
+                    "Batches upserted successfully",
+                    extra={"num_batches_inserted": num_batches_inserted},
+                )
 
             if not iterator_running:
                 break
