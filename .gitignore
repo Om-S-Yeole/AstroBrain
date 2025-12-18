@@ -17,3 +17,6 @@ test_main*.py
 
 # log files
 *.log
+
+# incomplete tasks tracker
+incomplete_tasks_todo.txt
