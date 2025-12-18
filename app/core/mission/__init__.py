@@ -1,11 +1,29 @@
 # app/core/mission/
 # │
-# ├── visibility.py
-# ├── eclipse.py
-# ├── sun_geometry.py
-# ├── power.py
-# ├── thermal.py
-# ├── communication.py
-# ├── duty_cycle.py
-# ├── propagator.py
+# ├── visibility.py -> 2 -> Done
+# ├── eclipse.py -> 4
+# ├── sun_geometry.py -> 3
+# ├── power.py -> 5
+# ├── thermal.py -> 8
+# ├── communication.py -> 6
+# ├── duty_cycle.py -> 7
+# ├── propagator.py -> 1 ->  Done
 # └── __init__.py
+
+from app.core.mission.propagator import OrbitPropagator
+from app.core.mission.visibility import (
+    compute_elevation_angle,
+    compute_visibility,
+    ecef_from_lat_lon_alt,
+    extract_visibility_windows,
+    visibility_mask,
+)
+
+__all__ = [
+    "OrbitPropagator",
+    "compute_elevation_angle",
+    "ecef_from_lat_lon_alt",
+    "visibility_mask",
+    "extract_visibility_windows",
+    "compute_visibility",
+]

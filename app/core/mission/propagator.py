@@ -7,7 +7,6 @@ from astropy import units as u
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation, EarthLocation
 from astropy.time import Time
 from astropy.units import Quantity
-from beartype import beartype
 from poliastro.bodies import Earth
 from poliastro.twobody import Orbit
 from poliastro.twobody.propagation import ValladoPropagator
@@ -76,7 +75,6 @@ class OrbitPropagator:
     >>> results = propagator.propagate("2024-01-01 00:00:00", "2024-01-02 00:00:00", 60)
     """
 
-    @beartype
     def __init__(
         self,
         orbit_source: Union[
@@ -94,7 +92,6 @@ class OrbitPropagator:
         self.orbit: Orbit = self._normalize_orbit_source(orbit_source)
         self._propagator = ValladoPropagator(numiter=500)
 
-    @beartype
     def propagate(
         self,
         start_time: str | datetime,
@@ -132,6 +129,19 @@ class OrbitPropagator:
         >>> print(results['time'])
         >>> print(results['lat'])
         """
+        if not isinstance(start_time, (str, datetime)):
+            raise TypeError(
+                f"Expected type of start_time is str or datetime. Got {type(start_time)}"
+            )
+        if not isinstance(end_time, (str, datetime)):
+            raise TypeError(
+                f"Expected type of end_time is str or datetime. Got {type(end_time)}"
+            )
+        if not isinstance(step, (int, float, timedelta)):
+            raise TypeError(
+                f"Expected type of step is int or float or timedelta. Got {type(step)}"
+            )
+
         propagation_results = {
             "time": self._build_time_grid(start_time, end_time, step),
             "r_eci": [],
@@ -160,7 +170,6 @@ class OrbitPropagator:
 
         return propagation_results
 
-    @beartype
     def propagate_at(
         self, times: List[datetime] | np.ndarray[datetime]
     ) -> PropagationResults:
@@ -187,6 +196,10 @@ class OrbitPropagator:
         >>> results = propagator.propagate_at(times)
         >>> print(results['r_eci'])
         """
+        if not isinstance(times, (list, np.ndarray)):
+            raise TypeError(
+                f"Expected type of times is list or np.ndarray. Got {type(times)}"
+            )
         for id, time in enumerate(times):
             times[id] = time.replace(tzinfo=pytz.utc)
 
@@ -354,7 +367,9 @@ class OrbitPropagator:
         gcrs = GCRS(r, obstime=Time(t_utc, scale="utc"))
         itrs = gcrs.transform_to(ITRS(obstime=Time(t_utc, scale="utc")))
 
-        loc = EarthLocation.from_geocentric(itrs[0], itrs[1], itrs[2], u.km)
+        # Access the Cartesian representation of the ITRS coordinate
+        itrs_cart = itrs.cartesian
+        loc = EarthLocation.from_geocentric(itrs_cart.x, itrs_cart.y, itrs_cart.z, u.km)
 
         lat = loc.lat.to(u.deg).value
         lon = loc.lon.to(u.deg).value

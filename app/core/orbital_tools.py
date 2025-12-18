@@ -1159,7 +1159,7 @@ def universal_kepler(
 
 
 @tool(args_schema=SGP4PropagateSchema)
-def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
+def sgp4_propagate_tool(line_1: str, line_2: str, at_datetime: str | datetime):
     """
     Propagate a satellite orbit using the SGP4 model from TLE data.
 
@@ -1880,3 +1880,104 @@ def argument_of_periapsis(
     orbit = Orbit.from_vectors(attractor, r_vec, v_vec)
 
     return orbit.argp.value
+
+
+def sgp4_propagate(line_1: str, line_2: str, at_datetime: str | datetime):
+    """
+    Propagate a satellite orbit using the SGP4 model from TLE data.
+
+    This function uses the Simplified General Perturbations 4 (SGP4) model to propagate
+    a satellite's orbit from Two-Line Element (TLE) set data to a specific date and time.
+    SGP4 is a widely-used analytical propagation model that accounts for perturbations
+    such as Earth's oblateness, atmospheric drag, and solar/lunar gravitational effects.
+
+    Parameters
+    ----------
+    line_1 : str
+        First line of the Two-Line Element (TLE) set. Must be a valid TLE format
+        string containing orbital elements and satellite information.
+    line_2 : str
+        Second line of the Two-Line Element (TLE) set. Must be a valid TLE format
+        string containing additional orbital parameters.
+    at_datetime : str or datetime.datetime
+        The date and time at which to compute the satellite's position and velocity.
+        If string, must be in the format 'YYYY-MM-DD HH:MM:SS'.
+        If datetime, must be timezone-aware (UTC).
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        A tuple containing two numpy arrays:
+        - r : numpy.ndarray
+            Position vector [x, y, z] in kilometers in the TEME (True Equator Mean
+            Equinox) reference frame.
+        - v : numpy.ndarray
+            Velocity vector [vx, vy, vz] in kilometers per second in the TEME
+            reference frame.
+
+    Raises
+    ------
+    TypeError
+        If `line_1` is not a string.
+    TypeError
+        If `line_2` is not a string.
+    TypeError
+        If `at_datetime` is not a string or datetime.datetime object.
+    RuntimeError
+        If SGP4 propagation encounters an error (e.g., decayed satellite, invalid
+        TLE data, or numerical issues).
+
+    Notes
+    -----
+    The SGP4 model is designed for near-Earth satellites and uses mean orbital elements.
+    The output is in the TEME coordinate system, which may need to be converted to
+    other reference frames (e.g., GCRS, ITRS) for some applications.
+
+    TLE data can be obtained from sources such as Space-Track.org, CelesTrak, or
+    N2YO. TLE elements have limited validity periods and should be updated regularly
+    for accurate predictions.
+
+    Examples
+    --------
+    >>> from datetime import datetime
+    >>> # ISS TLE example (fictional values for demonstration)
+    >>> line1 = "1 25544U 98067A   21275.51261574  .00002182  00000-0  41420-4 0  9990"
+    >>> line2 = "2 25544  51.6461 339.8014 0003045  24.8134  62.5806 15.48919393304228"
+    >>> target_time = "2021-10-02 12:00:00"
+    >>> r, v = sgp4_propagate(line1, line2, target_time)
+    >>> print(f"Position: {r} km")
+    >>> print(f"Velocity: {v} km/s")
+
+    >>> # Using datetime object
+    >>> target_time = datetime(2021, 10, 2, 12, 0, 0)
+    >>> r, v = sgp4_propagate(line1, line2, target_time)
+
+    >>> # Get current position of a satellite
+    >>> from datetime import datetime
+    >>> now = datetime.utcnow()
+    >>> r, v = sgp4_propagate(line1, line2, now)
+    """
+    if not isinstance(line_1, str):
+        raise TypeError(f"Expected type of line_1 is str. Got {type(line_1)}.")
+    if not isinstance(line_2, str):
+        raise TypeError(f"Expected type of line_2 is str. Got {type(line_2)}.")
+    if not isinstance(at_datetime, (str, datetime)):
+        raise TypeError(
+            f"Expected type of at_datetime is str or datetime. Got {type(at_datetime)}."
+        )
+
+    if isinstance(at_datetime, str):
+        at_datetime = datetime.strptime(at_datetime, format="%Y-%m-%d %H:%M:%S")
+
+    # UTC time is expected
+    at_datetime = at_datetime.replace(tzinfo=pytz.utc)
+
+    _, whole_part, frac_part = datetime_to_jd(at_datetime)
+
+    satellite = Satrec.twoline2rv(line_1, line_2)
+    e, r, v = satellite.sgp4(whole_part, frac_part)
+
+    if e != 0:
+        raise RuntimeError(f"Error in SGP4 propagation. {SGP4_ERRORS[f'{e}']}")
+    else:
+        return np.array(r), np.array(v)

@@ -432,7 +432,7 @@ Your role is to PLAN a deterministic sequence of tool invocations.
 You operate inside a workflow engine where every tool invocation
 must be uniquely identifiable.
 
-A function named `uuid_generator` is available to you.
+A function named `uuid_generator_tool` is available to you.
 You MUST use this function to generate tool IDs.
 
 --------------------
