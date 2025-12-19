@@ -2,7 +2,7 @@
 # │
 # ├── visibility.py -> 2 -> Done
 # ├── eclipse.py -> 4
-# ├── sun_geometry.py -> 3
+# ├── sun_geometry.py -> 3 -> Done
 # ├── power.py -> 5
 # ├── thermal.py -> 8
 # ├── communication.py -> 6
@@ -11,6 +11,12 @@
 # └── __init__.py
 
 from app.core.mission.propagator import OrbitPropagator
+from app.core.mission.sun_geometry import (
+    beta_angle,
+    compute_sun_geometry,
+    orbit_unit_normal_vector,
+    sun_vector_gcrs,
+)
 from app.core.mission.visibility import (
     compute_elevation_angle,
     compute_visibility,
@@ -26,4 +32,8 @@ __all__ = [
     "visibility_mask",
     "extract_visibility_windows",
     "compute_visibility",
+    "beta_angle",
+    "compute_sun_geometry",
+    "orbit_unit_normal_vector",
+    "sun_vector_gcrs",
 ]
