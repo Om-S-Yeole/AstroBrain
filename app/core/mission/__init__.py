@@ -10,6 +10,13 @@
 # ├── propagator.py -> 1 ->  Done
 # └── __init__.py
 
+from app.core.mission.communication import (
+    aggregate_ground_stations,
+    compute_communication,
+    compute_contact_duration_from_windows,
+    compute_passes,
+    compute_visibility_for_station,
+)
 from app.core.mission.eclipse import (
     compute_eclipse,
     extract_eclipse_windows,
@@ -56,4 +63,9 @@ __all__ = [
     "compute_power_consumption",
     "compute_power_generation",
     "propagate_battery_soc",
+    "aggregate_ground_stations",
+    "compute_communication",
+    "compute_contact_duration_from_windows",
+    "compute_passes",
+    "compute_visibility_for_station",
 ]
