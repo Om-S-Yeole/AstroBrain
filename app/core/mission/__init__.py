@@ -3,7 +3,7 @@
 # ├── visibility.py -> 2 -> Done
 # ├── eclipse.py -> 4 -> Done
 # ├── sun_geometry.py -> 3 -> Done
-# ├── power.py -> 5
+# ├── power.py -> 5 -> Done
 # ├── thermal.py -> 8
 # ├── communication.py -> 6
 # ├── duty_cycle.py -> 7
@@ -15,6 +15,12 @@ from app.core.mission.eclipse import (
     extract_eclipse_windows,
     is_in_umbra,
     umbra_mask,
+)
+from app.core.mission.power import (
+    compute_power_budget,
+    compute_power_consumption,
+    compute_power_generation,
+    propagate_battery_soc,
 )
 from app.core.mission.propagator import OrbitPropagator
 from app.core.mission.sun_geometry import (
@@ -46,4 +52,8 @@ __all__ = [
     "extract_eclipse_windows",
     "is_in_umbra",
     "umbra_mask",
+    "compute_power_budget",
+    "compute_power_consumption",
+    "compute_power_generation",
+    "propagate_battery_soc",
 ]
