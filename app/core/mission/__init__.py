@@ -1,7 +1,7 @@
 # app/core/mission/
 # │
 # ├── visibility.py -> 2 -> Done
-# ├── eclipse.py -> 4
+# ├── eclipse.py -> 4 -> Done
 # ├── sun_geometry.py -> 3 -> Done
 # ├── power.py -> 5
 # ├── thermal.py -> 8
@@ -10,6 +10,12 @@
 # ├── propagator.py -> 1 ->  Done
 # └── __init__.py
 
+from app.core.mission.eclipse import (
+    compute_eclipse,
+    extract_eclipse_windows,
+    is_in_umbra,
+    umbra_mask,
+)
 from app.core.mission.propagator import OrbitPropagator
 from app.core.mission.sun_geometry import (
     beta_angle,
@@ -36,4 +42,8 @@ __all__ = [
     "compute_sun_geometry",
     "orbit_unit_normal_vector",
     "sun_vector_gcrs",
+    "compute_eclipse",
+    "extract_eclipse_windows",
+    "is_in_umbra",
+    "umbra_mask",
 ]

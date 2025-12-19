@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, TypedDict
 
 import numpy as np
 import pytz
@@ -8,6 +8,11 @@ from astropy.coordinates import get_sun
 from astropy.time import Time
 
 from app.core.mission.propagator import PropagationResults
+
+
+class SunGeometryResults(TypedDict):
+    sun_vec_eci: list
+    beta_deg: list
 
 
 def sun_vector_gcrs(time: datetime | Time) -> Tuple:
@@ -116,7 +121,7 @@ def beta_angle(
     )
 
 
-def compute_sun_geometry(propagation_results: PropagationResults):
+def compute_sun_geometry(propagation_results: PropagationResults) -> SunGeometryResults:
     """
     Compute Sun geometry parameters for an entire propagated orbit.
 
@@ -133,8 +138,8 @@ def compute_sun_geometry(propagation_results: PropagationResults):
 
     Returns
     -------
-    dict
-        Dictionary containing:
+    SunGeometryResults
+        TypedDict containing:
         - 'sun_vec_eci': list of Sun position vectors in ECI coordinates (km)
         - 'beta_deg': list of beta angles in degrees
     """
