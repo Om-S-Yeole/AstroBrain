@@ -26,6 +26,14 @@ from app.core.mission.eclipse import (
     is_in_umbra,
     umbra_mask,
 )
+from app.core.mission.mission_summery import (
+    KeyMissionMetrics,
+    MissionSummary,
+    build_mission_summary,
+    determine_limiting_subsystem,
+    generate_explanation,
+    generate_recommendations,
+)
 from app.core.mission.power import (
     PowerConfig,
     PowerResults,
@@ -78,6 +86,8 @@ __all__ = [
     "ThermalResults",
     "GroundStationConfigVisibility",
     "VisibilityResults",
+    "KeyMissionMetrics",
+    "MissionSummary",
     "OrbitPropagator",
     "compute_elevation_angle",
     "ecef_from_lat_lon_alt",
@@ -112,4 +122,8 @@ __all__ = [
     "compute_solar_heat_input",
     "compute_thermal",
     "propagate_temperature",
+    "build_mission_summary",
+    "determine_limiting_subsystem",
+    "generate_explanation",
+    "generate_recommendations",
 ]
