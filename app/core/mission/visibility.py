@@ -8,7 +8,7 @@ from app.core.mission.propagator import PropagationResults
 from app.core.utils import rad2deg
 
 
-class GroundStationConfig(TypedDict):
+class GroundStationConfigVisibility(TypedDict):
     """Configuration for a ground station location.
 
     Attributes
@@ -269,7 +269,7 @@ def extract_visibility_windows(
 
 def compute_visibility(
     propagation_results: PropagationResults,
-    ground_station: GroundStationConfig,
+    ground_station: GroundStationConfigVisibility,
     min_elevation_deg: int | float = 10.0,
 ) -> VisibilityResults:
     """Compute satellite visibility from a ground station.
@@ -278,7 +278,7 @@ def compute_visibility(
     ----------
     propagation_results : PropagationResults
         Dictionary containing propagation results with keys: 'time', 'lat', 'lon', 'alt'.
-    ground_station : GroundStationConfig
+    ground_station : GroundStationConfigVisibility
         Dictionary containing ground station configuration with keys: 'gs_lat', 'gs_lon', 'gs_alt'.
     min_elevation_deg : int or float, optional
         Minimum elevation angle for visibility in degrees (default is 10.0).

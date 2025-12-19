@@ -1,4 +1,9 @@
 from app.core.mission.communication import (
+    CommunicationResults,
+    GroundStationConfig,
+    Pass,
+    StationResult,
+    Window,
     aggregate_ground_stations,
     compute_communication,
     compute_contact_duration_from_windows,
@@ -6,6 +11,8 @@ from app.core.mission.communication import (
     compute_visibility_for_station,
 )
 from app.core.mission.duty_cycle import (
+    DutyCycleResults,
+    PayloadConfig,
     check_sunlight_constraint,
     compute_data_downlinked,
     compute_data_generated,
@@ -13,12 +20,15 @@ from app.core.mission.duty_cycle import (
     evaluate_duty_cycle,
 )
 from app.core.mission.eclipse import (
+    EclipseResults,
     compute_eclipse,
     extract_eclipse_windows,
     is_in_umbra,
     umbra_mask,
 )
 from app.core.mission.power import (
+    PowerConfig,
+    PowerResults,
     compute_power_budget,
     compute_power_consumption,
     compute_power_generation,
@@ -26,12 +36,25 @@ from app.core.mission.power import (
 )
 from app.core.mission.propagator import OrbitPropagator
 from app.core.mission.sun_geometry import (
+    SunGeometryResults,
     beta_angle,
     compute_sun_geometry,
     orbit_unit_normal_vector,
     sun_vector_gcrs,
 )
+from app.core.mission.thermal import (
+    ThermalConfig,
+    ThermalResults,
+    check_thermal_limits,
+    compute_internal_heat,
+    compute_radiation_heat,
+    compute_solar_heat_input,
+    compute_thermal,
+    propagate_temperature,
+)
 from app.core.mission.visibility import (
+    GroundStationConfigVisibility,
+    VisibilityResults,
     compute_elevation_angle,
     compute_visibility,
     ecef_from_lat_lon_alt,
@@ -40,6 +63,21 @@ from app.core.mission.visibility import (
 )
 
 __all__ = [
+    "CommunicationResults",
+    "GroundStationConfig",
+    "Pass",
+    "StationResult",
+    "Window",
+    "DutyCycleResults",
+    "PayloadConfig",
+    "EclipseResults",
+    "PowerConfig",
+    "PowerResults",
+    "SunGeometryResults",
+    "ThermalConfig",
+    "ThermalResults",
+    "GroundStationConfigVisibility",
+    "VisibilityResults",
     "OrbitPropagator",
     "compute_elevation_angle",
     "ecef_from_lat_lon_alt",
@@ -68,4 +106,10 @@ __all__ = [
     "compute_data_generated",
     "compute_payload_ON_time",
     "evaluate_duty_cycle",
+    "check_thermal_limits",
+    "compute_internal_heat",
+    "compute_radiation_heat",
+    "compute_solar_heat_input",
+    "compute_thermal",
+    "propagate_temperature",
 ]
