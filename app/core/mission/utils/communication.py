@@ -23,8 +23,8 @@ class Window(TypedDict):
 
 class StationResult(TypedDict):
     station: str
-    elevation_deg: np.ndarray
-    visible: np.ndarray
+    elevation_deg: list
+    visible: list
     windows: list[Window]
 
 
@@ -391,8 +391,6 @@ def compute_communication(
     station_results = []
 
     for ground_station in ground_stations:
-        station_results.append(
-            compute_visibility_for_station(propagation_results, ground_station)
-        )
+        station_results.append(compute_visibility_for_station(propagation_results, ground_station))
 
     return aggregate_ground_stations(station_results)

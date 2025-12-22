@@ -25,12 +25,8 @@ class PlotOrbit3DSchema(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in kilometers"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in kilometers")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(
         default="earth",
         description="The central body around which the orbit is plotted",
@@ -49,18 +45,10 @@ class PlotTransferSchema(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
-    r_vec_1: list | np.ndarray | Quantity = Field(
-        description="Initial position vector [x, y, z] in km"
-    )
-    v_vec_1: list | np.ndarray | Quantity = Field(
-        description="Initial velocity vector [vx, vy, vz] in km/s"
-    )
-    r_vec_2: list | np.ndarray | Quantity = Field(
-        description="Final position vector [x, y, z] in km"
-    )
-    v_vec_2: list | np.ndarray | Quantity = Field(
-        description="Final velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec_1: list | Quantity = Field(description="Initial position vector [x, y, z] in km")
+    v_vec_1: list | Quantity = Field(description="Initial velocity vector [vx, vy, vz] in km/s")
+    r_vec_2: list | Quantity = Field(description="Final position vector [x, y, z] in km")
+    v_vec_2: list | Quantity = Field(description="Final velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(
         default="earth", description="The central body around which the transfer occurs"
     )
@@ -77,12 +65,8 @@ class PlotAltitudeVsTimeSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    times: list | np.ndarray = Field(
-        description="Array of time values (consistent units)"
-    )
-    alts: list | np.ndarray = Field(
-        description="Array of altitude values (typically km or m)"
-    )
+    times: list = Field(description="Array of time values (consistent units)")
+    alts: list = Field(description="Array of altitude values (typically km or m)")
 
 
 @tool(args_schema=PlotOrbit3DSchema)
@@ -374,13 +358,9 @@ def plot_altitude_vs_time(times: list | np.ndarray, alts: list | np.ndarray) -> 
     >>> plt.show()
     """
     if not isinstance(times, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of times is either list or ndarray. Got {type(times)}."
-        )
+        raise TypeError(f"Expected type of times is either list or ndarray. Got {type(times)}.")
     if not isinstance(alts, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of alts is either list or ndarray. Got {type(alts)}."
-        )
+        raise TypeError(f"Expected type of alts is either list or ndarray. Got {type(alts)}.")
 
     times = np.asarray(times)
     alts = np.asarray(alts)

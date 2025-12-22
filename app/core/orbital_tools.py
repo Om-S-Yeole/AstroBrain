@@ -27,13 +27,9 @@ class KeplerianToCartesianSchema(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
     a: float | Quantity = Field(description="Semi-major axis of the orbit")
-    ecc: float | Quantity = Field(
-        description="Eccentricity of the orbit (dimensionless)"
-    )
+    ecc: float | Quantity = Field(description="Eccentricity of the orbit (dimensionless)")
     inc: float | Quantity = Field(description="Inclination of the orbit")
-    raan: float | Quantity = Field(
-        description="Right ascension of the ascending node (RAAN)"
-    )
+    raan: float | Quantity = Field(description="Right ascension of the ascending node (RAAN)")
     argp: float | Quantity = Field(description="Argument of periapsis")
     nu: float | Quantity = Field(description="True anomaly")
     attractor: str | Body = Field(
@@ -50,12 +46,8 @@ class CartesianToKeplerianSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in kilometers"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in kilometers")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -67,12 +59,8 @@ class HohmannTransferSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial position vector [x, y, z] in km"
-    )
-    v_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial velocity vector [vx, vy, vz] in km/s"
-    )
+    r_1_vec: list | Quantity = Field(description="Initial position vector [x, y, z] in km")
+    v_1_vec: list | Quantity = Field(description="Initial velocity vector [vx, vy, vz] in km/s")
     r_2: int | float | Quantity = Field(description="Final orbital radius in km")
     attractor: str | Body = Field(default="earth", description="The central body")
 
@@ -85,12 +73,8 @@ class HohmannTimeOfFlightSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial position vector [x, y, z] in km"
-    )
-    v_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial velocity vector [vx, vy, vz] in km/s"
-    )
+    r_1_vec: list | Quantity = Field(description="Initial position vector [x, y, z] in km")
+    v_1_vec: list | Quantity = Field(description="Initial velocity vector [vx, vy, vz] in km/s")
     r_2: int | float | Quantity = Field(description="Final orbital radius in km")
     attractor: str | Body = Field(default="earth", description="The central body")
 
@@ -103,15 +87,9 @@ class BiellipticTransferSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial position vector [x, y, z] in km"
-    )
-    v_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial velocity vector [vx, vy, vz] in km/s"
-    )
-    r_b: int | float | Quantity = Field(
-        description="Intermediate apoapsis radius in km"
-    )
+    r_1_vec: list | Quantity = Field(description="Initial position vector [x, y, z] in km")
+    v_1_vec: list | Quantity = Field(description="Initial velocity vector [vx, vy, vz] in km/s")
+    r_b: int | float | Quantity = Field(description="Intermediate apoapsis radius in km")
     r_2: int | float | Quantity = Field(description="Final orbital radius in km")
     attractor: str | Body = Field(default="earth", description="The central body")
 
@@ -124,12 +102,8 @@ class PlaneChangeSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    v: list | np.ndarray | Quantity = Field(
-        description="Velocity vector or magnitude in km/s"
-    )
-    delta_i: int | float | Quantity = Field(
-        description="Change in inclination angle in degrees"
-    )
+    v: list | Quantity = Field(description="Velocity vector or magnitude in km/s")
+    delta_i: int | float | Quantity = Field(description="Change in inclination angle in degrees")
 
 
 class LambertSolverSchema(BaseModel):
@@ -140,16 +114,10 @@ class LambertSolverSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_1_vec: list | np.ndarray | Quantity = Field(
-        description="Initial position vector [x, y, z] in km"
-    )
-    r_2_vec: list | np.ndarray | Quantity = Field(
-        description="Final position vector [x, y, z] in km"
-    )
+    r_1_vec: list | Quantity = Field(description="Initial position vector [x, y, z] in km")
+    r_2_vec: list | Quantity = Field(description="Final position vector [x, y, z] in km")
     tof: int | float | Quantity = Field(description="Time of flight in seconds")
-    prograde: bool = Field(
-        default=True, description="True for prograde (short way) trajectory"
-    )
+    prograde: bool = Field(default=True, description="True for prograde (short way) trajectory")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -161,12 +129,8 @@ class UniversalKeplerSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Initial position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Initial velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Initial position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Initial velocity vector [vx, vy, vz] in km/s")
     dt: int | float | timedelta | TimeDelta = Field(
         description="Time increment in seconds (positive=forward, negative=backward)"
     )
@@ -220,12 +184,8 @@ class SpecificEnergySchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -237,12 +197,8 @@ class SpecificAngularMomentumSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
 
 
 class EccentricityVectorSchema(BaseModel):
@@ -253,12 +209,8 @@ class EccentricityVectorSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -270,12 +222,8 @@ class TrueAnomalyFromVectorsSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -287,12 +235,8 @@ class RAANFromVectorsSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -304,12 +248,8 @@ class ArgumentOfPeriapsisSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    r_vec: list | np.ndarray | Quantity = Field(
-        description="Position vector [x, y, z] in km"
-    )
-    v_vec: list | np.ndarray | Quantity = Field(
-        description="Velocity vector [vx, vy, vz] in km/s"
-    )
+    r_vec: list | Quantity = Field(description="Position vector [x, y, z] in km")
+    v_vec: list | Quantity = Field(description="Velocity vector [vx, vy, vz] in km/s")
     attractor: str | Body = Field(default="earth", description="The central body")
 
 
@@ -434,8 +374,8 @@ def keplerian_to_cartesian(
 
 @tool(args_schema=CartesianToKeplerianSchema)
 def cartesian_to_keplerian(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     attractor: str | Body = Earth,
 ):
     """
@@ -528,8 +468,8 @@ def cartesian_to_keplerian(
 
 @tool(args_schema=HohmannTransferSchema)
 def hohmann_transfer(
-    r_1_vec: list | np.ndarray | Quantity,
-    v_1_vec: list | np.ndarray | Quantity,
+    r_1_vec: list | Quantity,
+    v_1_vec: list | Quantity,
     r_2: int | float | Quantity,
     attractor: str | Body = Earth,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -628,8 +568,8 @@ def hohmann_transfer(
 
 @tool(args_schema=HohmannTimeOfFlightSchema)
 def hohmann_time_of_flight(
-    r_1_vec: list | np.ndarray | Quantity,
-    v_1_vec: list | np.ndarray | Quantity,
+    r_1_vec: list | Quantity,
+    v_1_vec: list | Quantity,
     r_2: int | float | Quantity,
     attractor: str | Body = Earth,
 ) -> float:
@@ -720,8 +660,8 @@ def hohmann_time_of_flight(
 
 @tool(args_schema=BiellipticTransferSchema)
 def bielliptic_transfer(
-    r_1_vec: list | np.ndarray | Quantity,
-    v_1_vec: list | np.ndarray | Quantity,
+    r_1_vec: list | Quantity,
+    v_1_vec: list | Quantity,
     r_b: int | float | Quantity,
     r_2: int | float | Quantity,
     attractor: str | Body = Earth,
@@ -846,7 +786,7 @@ def bielliptic_transfer(
 
 
 @tool(args_schema=PlaneChangeSchema)
-def plane_change(v: list | np.ndarray | Quantity, delta_i: int | float | Quantity):
+def plane_change(v: list | Quantity, delta_i: int | float | Quantity):
     """
     Calculate the delta-v required for a simple plane change maneuver.
 
@@ -926,8 +866,8 @@ def plane_change(v: list | np.ndarray | Quantity, delta_i: int | float | Quantit
 
 @tool(args_schema=LambertSolverSchema)
 def lambert_solver(
-    r_1_vec: list | np.ndarray | Quantity,
-    r_2_vec: list | np.ndarray | Quantity,
+    r_1_vec: list | Quantity,
+    r_2_vec: list | Quantity,
     tof: int | float | Quantity,
     prograde: bool = True,
     attractor: str | Body = Earth,
@@ -1041,8 +981,8 @@ def lambert_solver(
 
 @tool(args_schema=UniversalKeplerSchema)
 def universal_kepler(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     dt: int | float | timedelta | TimeDelta,
     attractor: str | Body = Earth,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -1394,8 +1334,8 @@ def mean_motion(a: int | float, mu: int | float) -> float:
 
 @tool(args_schema=SpecificEnergySchema)
 def specific_energy(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     attractor: str | Body = Earth,
 ) -> float:
     """
@@ -1478,9 +1418,7 @@ def specific_energy(
 
 
 @tool(args_schema=SpecificAngularMomentumSchema)
-def specific_angular_momentum(
-    r_vec: list | np.ndarray | Quantity, v_vec: list | np.ndarray | Quantity
-) -> float:
+def specific_angular_momentum(r_vec: list | Quantity, v_vec: list | Quantity) -> float:
     """
     Calculate the specific angular momentum vector of an orbit.
 
@@ -1551,8 +1489,8 @@ def specific_angular_momentum(
 
 @tool(args_schema=EccentricityVectorSchema)
 def eccentricity_vector(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     attractor: str | Body = Earth,
 ) -> np.ndarray:
     """
@@ -1636,8 +1574,8 @@ def eccentricity_vector(
 
 @tool(args_schema=TrueAnomalyFromVectorsSchema)
 def true_anomaly_from_vectors(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     attractor: str | Body = Earth,
 ) -> float:
     """
@@ -1720,8 +1658,8 @@ def true_anomaly_from_vectors(
 
 @tool(args_schema=RAANFromVectorsSchema)
 def raan_from_vectors(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     attractor: str | Body = Earth,
 ) -> float:
     """
@@ -1803,8 +1741,8 @@ def raan_from_vectors(
 
 @tool(args_schema=ArgumentOfPeriapsisSchema)
 def argument_of_periapsis(
-    r_vec: list | np.ndarray | Quantity,
-    v_vec: list | np.ndarray | Quantity,
+    r_vec: list | Quantity,
+    v_vec: list | Quantity,
     attractor: str | Body = Earth,
 ) -> float:
     """

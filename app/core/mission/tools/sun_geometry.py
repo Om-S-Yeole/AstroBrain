@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Tuple
 
 import numpy as np
 import pytz
@@ -25,15 +24,15 @@ class SunVectorGcrsTool(BaseModel):
 
 class OrbitUnitNormalVectorTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    r_eci: list | np.ndarray
-    v_eci: list | np.ndarray
+    r_eci: list
+    v_eci: list
 
 
 class BetaAngleTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    r_eci: list | np.ndarray
-    v_eci: list | np.ndarray
-    sun_vec_eci: list | np.ndarray
+    r_eci: list
+    v_eci: list
+    sun_vec_eci: list
 
 
 class ComputeSunGeometryTool(BaseModel):
@@ -42,7 +41,7 @@ class ComputeSunGeometryTool(BaseModel):
 
 
 @tool(args_schema=SunVectorGcrsTool)
-def sun_vector_gcrs_tool(time: datetime | Time) -> Tuple:
+def sun_vector_gcrs_tool(time: datetime | Time) -> tuple:
     """
     Compute the Sun position vector in GCRS (Geocentric Celestial Reference System) coordinates.
 
@@ -73,9 +72,7 @@ def sun_vector_gcrs_tool(time: datetime | Time) -> Tuple:
 
 
 @tool(args_schema=OrbitUnitNormalVectorTool)
-def orbit_unit_normal_vector_tool(
-    r_eci: list | np.ndarray, v_eci: list | np.ndarray
-) -> np.ndarray:
+def orbit_unit_normal_vector_tool(r_eci: list | np.ndarray, v_eci: list | np.ndarray) -> np.ndarray:
     """
     Calculate the unit normal vector to the orbital plane.
 
@@ -100,13 +97,9 @@ def orbit_unit_normal_vector_tool(
         If r_eci or v_eci are not list or numpy arrays.
     """
     if not isinstance(r_eci, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}"
-        )
+        raise TypeError(f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}")
     if not isinstance(v_eci, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of v_eci is list or np.ndarray. Got {type(v_eci)}"
-        )
+        raise TypeError(f"Expected type of v_eci is list or np.ndarray. Got {type(v_eci)}")
 
     r_eci = np.array(r_eci)
     v_eci = np.array(v_eci)
@@ -143,9 +136,7 @@ def beta_angle_tool(
     sun_vec_eci = np.array(sun_vec_eci)
     return np.rad2deg(
         np.arcsin(
-            orbit_unit_normal_vector(r_eci, v_eci)
-            @ sun_vec_eci
-            / np.linalg.norm(sun_vec_eci)
+            orbit_unit_normal_vector(r_eci, v_eci) @ sun_vec_eci / np.linalg.norm(sun_vec_eci)
         )
     )
 

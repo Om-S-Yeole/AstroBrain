@@ -10,7 +10,7 @@ from app.core.mission.utils.sun_geometry import SunGeometryResults
 
 
 class EclipseResults(TypedDict):
-    eclipsed: np.ndarray[bool]
+    eclipsed: list[bool]
     windows: list[dict]
     fraction_in_eclipse: float
 
@@ -43,9 +43,7 @@ def is_in_umbra(
         If r_eci or sun_vec_eci are not list or numpy arrays.
     """
     if not isinstance(r_eci, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}"
-        )
+        raise TypeError(f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}")
     if not isinstance(sun_vec_eci, (list, np.ndarray)):
         raise TypeError(
             f"Expected type of sun_vec_eci is list or np.ndarray. Got {type(sun_vec_eci)}"
@@ -87,9 +85,7 @@ def umbra_mask(r_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray):
         If r_eci or sun_vec_eci are not list or numpy arrays.
     """
     if not isinstance(r_eci, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}"
-        )
+        raise TypeError(f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}")
     if not isinstance(sun_vec_eci, (list, np.ndarray)):
         raise TypeError(
             f"Expected type of sun_vec_eci is list or np.ndarray. Got {type(sun_vec_eci)}"
@@ -136,9 +132,7 @@ def extract_eclipse_windows(
         If times or eclipse_mask are not list or numpy arrays.
     """
     if not isinstance(times, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of times is list or np.ndarray. Got {type(times)}"
-        )
+        raise TypeError(f"Expected type of times is list or np.ndarray. Got {type(times)}")
     if not isinstance(eclipse_mask, (list, np.ndarray)):
         raise TypeError(
             f"Expected type of eclipse_mask is list or np.ndarray. Got {type(eclipse_mask)}"
@@ -154,9 +148,7 @@ def extract_eclipse_windows(
             add_new = False
         elif is_eclipsed and not add_new:
             eclipse_windows[-1]["end"] = time
-            eclipse_windows[-1]["duration"] = (
-                time - eclipse_windows[-1]["start"]
-            ).total_seconds()
+            eclipse_windows[-1]["duration"] = (time - eclipse_windows[-1]["start"]).total_seconds()
         elif not is_eclipsed:
             add_new = True
 

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 from langchain.chat_models import BaseChatModel
 from langchain.messages import HumanMessage, SystemMessage
@@ -29,17 +29,13 @@ class ToolInputSafe(BaseModel):
         List/tuple index when kind is "index_ref".
     """
 
-    kind: Literal["literal", "dict_ref", "index_ref"] = Field(
-        ..., description="Type of input"
-    )
-    value: Optional[Union[str, int, float, bool, List[Any], Dict[str, Any]]] = Field(
+    kind: Literal["literal", "dict_ref", "index_ref"] = Field(..., description="Type of input")
+    value: Union[str, int, float, bool, list[Any], dict[str, Any]] | None = Field(
         None, description="Value if kind is literal"
     )
-    from_tool_id: Optional[str] = Field(
-        None, description="Tool ID if kind is dict_ref or index_ref"
-    )
-    key: Optional[str] = Field(None, description="Key if kind is dict_ref")
-    index: Optional[int] = Field(None, description="Index if kind is index_ref")
+    from_tool_id: str | None = Field(None, description="Tool ID if kind is dict_ref or index_ref")
+    key: str | None = Field(None, description="Key if kind is dict_ref")
+    index: int | None = Field(None, description="Index if kind is index_ref")
 
 
 class ToolDataPydantic(BaseModel):
@@ -65,7 +61,7 @@ class ToolDataPydantic(BaseModel):
     tool_name: str = Field(..., description="Name of the tool")
 
     # str = param name & ToolInput = how to get value for that param
-    inputs: Dict[str, ToolInputSafe] = Field(
+    inputs: dict[str, ToolInputSafe] = Field(
         ...,
         description="From where the value of the inputs of the tool must be found out. Key of the dictionary is the input name (as it is) and that specific key's corresponding value is from where the input value can get",
     )
@@ -84,7 +80,7 @@ class ToolSeqList(BaseModel):
         Ordered list of tool invocations to be executed.
     """
 
-    tool_seq_list: List[ToolDataPydantic] = Field(
+    tool_seq_list: list[ToolDataPydantic] = Field(
         ...,
         description="List of tool schema. Tool schema is defined as ToolDataPydantic",
     )

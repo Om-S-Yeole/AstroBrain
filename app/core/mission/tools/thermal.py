@@ -38,16 +38,16 @@ class ComputeRadiationHeatTool(BaseModel):
 
 class PropagateTemperatureTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    times: np.ndarray
-    eclipsed: np.ndarray
-    beta_deg: np.ndarray
+    times: list
+    eclipsed: list
+    beta_deg: list
     power_config: PowerConfig
     thermal_config: ThermalConfig
 
 
 class CheckThermalLimitsTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    temperature_K: np.ndarray
+    temperature_K: list
     thermal_config: ThermalConfig
 
 
@@ -178,19 +178,14 @@ def compute_radiation_heat_tool(temp_K: float, thermal_config: ThermalConfig):
 
     This assumes the spacecraft radiates to deep space at effectively 0 K.
     """
-    return (
-        thermal_config["emissivity"]
-        * Stefan_Boltzmann
-        * thermal_config["area_m2"]
-        * temp_K**4
-    )
+    return thermal_config["emissivity"] * Stefan_Boltzmann * thermal_config["area_m2"] * temp_K**4
 
 
 @tool(args_schema=PropagateTemperatureTool)
 def propagate_temperature_tool(
-    times: np.ndarray,
-    eclipsed: np.ndarray,
-    beta_deg: np.ndarray,
+    times: list,
+    eclipsed: list,
+    beta_deg: list,
     power_config: PowerConfig,
     thermal_config: ThermalConfig,
 ) -> np.ndarray:
@@ -255,6 +250,10 @@ def propagate_temperature_tool(
     - Instantaneous heat distribution
     - Constant material properties
     """
+    times = np.array(times)
+    eclipsed = np.array(eclipsed)
+    beta_deg = np.array(beta_deg)
+
     internal_heat = compute_internal_heat(power_config)
 
     propagated_temp = [thermal_config["initial_temp_K"]]
@@ -279,7 +278,7 @@ def propagate_temperature_tool(
 
 @tool(args_schema=CheckThermalLimitsTool)
 def check_thermal_limits_tool(
-    temperature_K: np.ndarray,
+    temperature_K: list,
     thermal_config: ThermalConfig,
 ) -> dict:
     """
@@ -322,6 +321,8 @@ def check_thermal_limits_tool(
     - Thermal control system design validation
     - Identifying need for heaters or radiators
     """
+    temperature_K = np.array(temperature_K)
+
     min_bearable_temp = thermal_config["Tmin_K"]
     max_bearable_temp = thermal_config["Tmax_K"]
 
@@ -427,8 +428,6 @@ def compute_thermal_tool(
     eclipsed = eclipse_results["eclipsed"]
     beta_arr = sun_geometry["beta_deg"]
 
-    propagated_temp = propagate_temperature(
-        times, eclipsed, beta_arr, power_config, thermal_config
-    )
+    propagated_temp = propagate_temperature(times, eclipsed, beta_arr, power_config, thermal_config)
 
     return check_thermal_limits(propagated_temp, thermal_config)

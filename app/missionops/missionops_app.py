@@ -9,17 +9,17 @@ from langgraph.types import Command
 from app.missionops.graph import build_graph
 from app.missionops.state import FinalResponse
 from app.missionops.tool_factory import (
+    ALL_TOOL_REGISTRY,
     BASE_TOOL_REGISTRY,
     COMMUNICATION_TOOL_REGISTRY,
     DUTY_CYCLE_TOOL_REGISTRY,
     ECLIPSE_TOOL_REGISTRY,
+    MISSION_SUMMARY_TOOL_REGISTRY,
     POWER_TOOL_REGISTRY,
     PROPAGATOR_TOOL_REGISTRY,
     SUN_GEOMETRY_TOOL_REGISTRY,
     THERMAL_TOOL_REGISTRY,
     VISIBILITY_TOOL_REGISTRY,
-    ALL_TOOL_REGISTRY,
-    MISSION_SUMMARY_TOOL_REGISTRY,
 )
 from app.rag import VectorStore
 
@@ -28,7 +28,7 @@ class MissionOpsRes(TypedDict):
     isInterrupted: bool
     clarification_limit_exceeded: bool
     interrupt_message: str
-    final_response: Optional[FinalResponse]
+    final_response: FinalResponse | None
 
 
 # --------- Globally shared resources ------------
@@ -47,9 +47,7 @@ vectorstore = VectorStore(
     hf_device=os.getenv("hf_device"),
     cloud=os.getenv("cloud"),
     region=os.getenv("region"),
-    index_deletion_protection=(
-        True if os.getenv("index_deletion_protection") == "True" else False
-    ),
+    index_deletion_protection=(True if os.getenv("index_deletion_protection") == "True" else False),
 )
 
 model_config_per_node = {
@@ -67,9 +65,7 @@ model_config_per_node = {
     },
     "orbit_propagator_visibility": {
         "model": os.getenv("orbit_propagator_visibility_model_name_missionops"),
-        "temperature": float(
-            os.getenv("orbit_propagator_visibility_model_temp_missionops")
-        ),
+        "temperature": float(os.getenv("orbit_propagator_visibility_model_temp_missionops")),
     },
     "sun_eclipse": {
         "model": os.getenv("sun_eclipse_model_name_missionops"),
@@ -77,9 +73,7 @@ model_config_per_node = {
     },
     "power_comm_thermal_duty": {
         "model": os.getenv("power_comm_thermal_duty_model_name_missionops"),
-        "temperature": float(
-            os.getenv("power_comm_thermal_duty_model_temp_missionops")
-        ),
+        "temperature": float(os.getenv("power_comm_thermal_duty_model_temp_missionops")),
     },
     "mission_summary": {
         "model": os.getenv("mission_summary_model_name_missionops"),
@@ -95,9 +89,7 @@ model_config_per_node = {
     },
 }
 
-models_per_nodes = {
-    key: ChatOllama(**value) for key, value in model_config_per_node.items()
-}
+models_per_nodes = {key: ChatOllama(**value) for key, value in model_config_per_node.items()}
 
 graph = build_graph()
 
@@ -108,15 +100,11 @@ config = {
         "re_evaluate_model": models_per_nodes["re_evaluate"],
         "orbit_propagator_visibility_model": models_per_nodes[
             "orbit_propagator_visibility"
-        ].bind_tools(
-            BASE_TOOL_REGISTRY + PROPAGATOR_TOOL_REGISTRY + VISIBILITY_TOOL_REGISTRY
-        ),
+        ].bind_tools(BASE_TOOL_REGISTRY + PROPAGATOR_TOOL_REGISTRY + VISIBILITY_TOOL_REGISTRY),
         "sun_eclipse_model": models_per_nodes["sun_eclipse"].bind_tools(
             BASE_TOOL_REGISTRY + SUN_GEOMETRY_TOOL_REGISTRY + ECLIPSE_TOOL_REGISTRY
         ),
-        "power_comm_thermal_duty_model": models_per_nodes[
-            "power_comm_thermal_duty"
-        ].bind_tools(
+        "power_comm_thermal_duty_model": models_per_nodes["power_comm_thermal_duty"].bind_tools(
             BASE_TOOL_REGISTRY
             + POWER_TOOL_REGISTRY
             + COMMUNICATION_TOOL_REGISTRY
@@ -157,9 +145,7 @@ async def main(thread_id: str, user_req: str) -> MissionOpsRes:
         }
     }
 
-    result = await asyncio.to_thread(
-        graph.invoke, {"user_query": user_req}, request_config
-    )
+    result = await asyncio.to_thread(graph.invoke, {"user_query": user_req}, request_config)
 
     num_clarifications = 0
     CLARIFICATION_LIMIT = 5

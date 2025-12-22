@@ -24,6 +24,8 @@ from poliastro.bodies import (
 from pydantic import BaseModel, Field
 from sgp4.api import jday
 
+from app.core.utils import rotation_matrix_from_perifocal_to_ECI
+
 
 class BodyFromStrSchema(BaseModel):
     """Input schema for the body_from_str tool.
@@ -48,7 +50,7 @@ class NonQuantityToQuantitySchema(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
-    value: int | float | list | np.ndarray | Quantity = Field(
+    value: int | float | list | Quantity = Field(
         description="Numeric value to convert (scalar, list, array, or existing Quantity)"
     )
     unit: str = Field(description="Astropy unit to attach or replace")
@@ -62,9 +64,7 @@ class DatetimeToJDSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    dt: datetime = Field(
-        description="Datetime object to convert (expected in UTC timezone)"
-    )
+    dt: datetime = Field(description="Datetime object to convert (expected in UTC timezone)")
 
 
 class DatetimeFromTimesSchema(BaseModel):
@@ -113,9 +113,7 @@ class NormSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    vec: list | np.ndarray = Field(
-        description="Vector to calculate magnitude of (any dimension)"
-    )
+    vec: list = Field(description="Vector to calculate magnitude of (any dimension)")
 
 
 class UnitVecSchema(BaseModel):
@@ -126,7 +124,7 @@ class UnitVecSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    vec: list | np.ndarray = Field(description="Vector to normalize (any dimension)")
+    vec: list = Field(description="Vector to normalize (any dimension)")
 
 
 class RotationMatrixPerifocalToECISchema(BaseModel):
@@ -138,9 +136,7 @@ class RotationMatrixPerifocalToECISchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    raan: int | float = Field(
-        description="Right Ascension of Ascending Node (RAAN/Ω) in degrees"
-    )
+    raan: int | float = Field(description="Right Ascension of Ascending Node (RAAN/Ω) in degrees")
     i: int | float = Field(description="Inclination angle in degrees")
     argp: int | float = Field(description="Argument of periapsis (ω) in degrees")
 
@@ -154,9 +150,7 @@ class RotationMatrixECIToPerifocalSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    raan: int | float = Field(
-        description="Right Ascension of Ascending Node (RAAN/Ω) in degrees"
-    )
+    raan: int | float = Field(description="Right Ascension of Ascending Node (RAAN/Ω) in degrees")
     i: int | float = Field(description="Inclination angle in degrees")
     argp: int | float = Field(description="Argument of periapsis (ω) in degrees")
 
@@ -169,8 +163,8 @@ class CrossSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    a: list | np.ndarray = Field(description="First 3D vector")
-    b: list | np.ndarray = Field(description="Second 3D vector")
+    a: list = Field(description="First 3D vector")
+    b: list = Field(description="Second 3D vector")
 
 
 class DotSchema(BaseModel):
@@ -181,10 +175,8 @@ class DotSchema(BaseModel):
     """
 
     model_config = {"arbitrary_types_allowed": True}
-    a: list | np.ndarray = Field(description="First vector")
-    b: list | np.ndarray = Field(
-        description="Second vector (must have same length as first)"
-    )
+    a: list = Field(description="First vector")
+    b: list = Field(description="Second vector (must have same length as first)")
 
 
 class UUIDGeneratorSchema(BaseModel):
@@ -285,9 +277,7 @@ def body_from_str_tool(planet: str | Body) -> Body:
 
 
 @tool(args_schema=NonQuantityToQuantitySchema)
-def non_quantity_to_Quantity_tool(
-    value: int | float | list | np.ndarray | Quantity, unit: str
-):
+def non_quantity_to_Quantity_tool(value: int | float | list | Quantity, unit: str):
     """
     Convert a numeric value to an astropy Quantity with specified units.
 
@@ -397,9 +387,7 @@ def datetime_to_jd_tool(dt: datetime) -> tuple[float, float, float]:
     >>> jd, _, _ = datetime_to_jd(now)
     >>> print(f"Current JD: {jd}")
     """
-    whole_part, frac_part = jday(
-        dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
-    )
+    whole_part, frac_part = jday(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
     julian_day = whole_part + frac_part
     return julian_day, whole_part, frac_part
 
@@ -523,9 +511,7 @@ def deg2rad_tool(angle_deg: int | float) -> float:
     0.7853981633974483
     """
     if not isinstance(angle_deg, (int, float)):
-        raise TypeError(
-            f"Expected type of angle_deg is int or float. Got {type(angle_deg)}."
-        )
+        raise TypeError(f"Expected type of angle_deg is int or float. Got {type(angle_deg)}.")
     return np.deg2rad(angle_deg)
 
 
@@ -572,9 +558,7 @@ def rad2deg_tool(angle_rad: int | float) -> float:
     90.0
     """
     if not isinstance(angle_rad, (int, float)):
-        raise TypeError(
-            f"Expected type of angle_rad is int or float. Got {type(angle_rad)}."
-        )
+        raise TypeError(f"Expected type of angle_rad is int or float. Got {type(angle_rad)}.")
     return np.rad2deg(angle_rad)
 
 
@@ -1109,6 +1093,4 @@ def jd_to_datetime_tool(jd: float) -> datetime:
     day = C - E - int(30.6001 * G) + F
     month = G - 1 if G < 13.5 else G - 13
     year = D - 4716 if month > 2.5 else D - 4715
-    return datetime(year, month, int(day), tzinfo=timezone.utc) + timedelta(
-        days=day % 1
-    )
+    return datetime(year, month, int(day), tzinfo=timezone.utc) + timedelta(days=day % 1)

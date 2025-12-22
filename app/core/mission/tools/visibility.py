@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -20,8 +19,8 @@ from app.core.utils import rad2deg
 
 class ComputeElevationAngleTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    sat_ecef: list | np.ndarray
-    gs_ecef: list | np.ndarray
+    sat_ecef: list
+    gs_ecef: list
 
 
 class EcefFromLatLonAltTool(BaseModel):
@@ -33,9 +32,9 @@ class EcefFromLatLonAltTool(BaseModel):
 
 class VisibilityMaskTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    sat_lat: List[float] | np.ndarray[float]
-    sat_lon: List[float] | np.ndarray[float]
-    sat_alt: List[float] | np.ndarray[float]
+    sat_lat: list[float]
+    sat_lon: list[float]
+    sat_alt: list[float]
     gs_lat: float
     gs_lon: float
     gs_alt: float
@@ -44,9 +43,9 @@ class VisibilityMaskTool(BaseModel):
 
 class ExtractVisibilityWindowsTool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    times: List[datetime] | np.ndarray
-    elevation_angles: List[float] | np.ndarray
-    visible_mask: List[bool] | np.ndarray
+    times: list[datetime]
+    elevation_angles: list[float]
+    visible_mask: list[bool]
 
 
 class ComputeVisibilityTool(BaseModel):
@@ -57,9 +56,7 @@ class ComputeVisibilityTool(BaseModel):
 
 
 @tool(args_schema=ComputeElevationAngleTool)
-def compute_elevation_angle_tool(
-    sat_ecef: list | np.ndarray, gs_ecef: list | np.ndarray
-) -> float:
+def compute_elevation_angle_tool(sat_ecef: list | np.ndarray, gs_ecef: list | np.ndarray) -> float:
     """Compute elevation angle of satellite from ground station.
 
     Parameters
@@ -80,13 +77,9 @@ def compute_elevation_angle_tool(
         If sat_ecef or gs_ecef are not list or np.ndarray.
     """
     if not isinstance(sat_ecef, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of sat_ecef is list or np.ndarray. Got {type(sat_ecef)}"
-        )
+        raise TypeError(f"Expected type of sat_ecef is list or np.ndarray. Got {type(sat_ecef)}")
     if not isinstance(gs_ecef, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of gs_ecef is list or np.ndarray. Got {type(gs_ecef)}"
-        )
+        raise TypeError(f"Expected type of gs_ecef is list or np.ndarray. Got {type(gs_ecef)}")
     sat_ecef = np.array(sat_ecef)
     gs_ecef = np.array(gs_ecef)
 
@@ -134,9 +127,9 @@ def ecef_from_lat_lon_alt_tool(lat: float, lon: float, alt: float) -> np.ndarray
 
 @tool(args_schema=VisibilityMaskTool)
 def visibility_mask_tool(
-    sat_lat: List[float] | np.ndarray[float],
-    sat_lon: List[float] | np.ndarray[float],
-    sat_alt: List[float] | np.ndarray[float],
+    sat_lat: list[float] | np.ndarray[float],
+    sat_lon: list[float] | np.ndarray[float],
+    sat_alt: list[float] | np.ndarray[float],
     gs_lat: float,
     gs_lon: float,
     gs_alt: float,
@@ -146,11 +139,11 @@ def visibility_mask_tool(
 
     Parameters
     ----------
-    sat_lat : List[float] or np.ndarray[float]
+    sat_lat : list[float] or np.ndarray[float]
         Satellite latitude values in degrees.
-    sat_lon : List[float] or np.ndarray[float]
+    sat_lon : list[float] or np.ndarray[float]
         Satellite longitude values in degrees.
-    sat_alt : List[float] or np.ndarray[float]
+    sat_alt : list[float] or np.ndarray[float]
         Satellite altitude values in meters.
     gs_lat : float
         Ground station latitude in degrees.
@@ -174,17 +167,11 @@ def visibility_mask_tool(
         If min_elevation_deg is not in the range [0, 90).
     """
     if not isinstance(sat_lat, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of sat_lat is list or np.ndarray. Got {type(sat_lat)}"
-        )
+        raise TypeError(f"Expected type of sat_lat is list or np.ndarray. Got {type(sat_lat)}")
     if not isinstance(sat_lon, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of sat_lon is list or np.ndarray. Got {type(sat_lon)}"
-        )
+        raise TypeError(f"Expected type of sat_lon is list or np.ndarray. Got {type(sat_lon)}")
     if not isinstance(sat_alt, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of sat_alt is list or np.ndarray. Got {type(sat_alt)}"
-        )
+        raise TypeError(f"Expected type of sat_alt is list or np.ndarray. Got {type(sat_alt)}")
     if not isinstance(gs_lat, float):
         raise TypeError(f"Expected type of gs_lat is float. Got {type(gs_lat)}")
     if not isinstance(gs_lon, float):
@@ -198,9 +185,7 @@ def visibility_mask_tool(
         )
 
     if not (min_elevation_deg >= 0 and min_elevation_deg < 90):
-        raise ValueError(
-            f"Expected min_elevation_angle in [0, 90). Got {min_elevation_deg}"
-        )
+        raise ValueError(f"Expected min_elevation_angle in [0, 90). Got {min_elevation_deg}")
 
     sat_lat = np.array(sat_lat)
     sat_lon = np.array(sat_lon)
@@ -222,25 +207,25 @@ def visibility_mask_tool(
 
 @tool(args_schema=ExtractVisibilityWindowsTool)
 def extract_visibility_windows_tool(
-    times: List[datetime] | np.ndarray,
-    elevation_angles: List[float] | np.ndarray,
-    visible_mask: List[bool] | np.ndarray,
+    times: list[datetime] | np.ndarray,
+    elevation_angles: list[float] | np.ndarray,
+    visible_mask: list[bool] | np.ndarray,
 ) -> list[dict]:
     """Extract continuous visibility windows from visibility mask.
 
     Parameters
     ----------
-    times : List[datetime] or np.ndarray
+    times : list[datetime] or np.ndarray
         Array of datetime objects corresponding to each time step.
-    elevation_angles : List[float] or np.ndarray
+    elevation_angles : list[float] or np.ndarray
         Elevation angles in degrees for each time step.
-    visible_mask : List[bool] or np.ndarray
+    visible_mask : list[bool] or np.ndarray
         Boolean mask indicating visibility at each time step.
 
     Returns
     -------
     list[dict]
-        List of dictionaries, each containing 'start', 'end', and 'max_ele' keys
+        list of dictionaries, each containing 'start', 'end', and 'max_ele' keys
         representing visibility window start time, end time, and maximum elevation angle.
 
     Raises
@@ -249,9 +234,7 @@ def extract_visibility_windows_tool(
         If input types are incorrect.
     """
     if not isinstance(times, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of times is list or np.ndarray. Got {type(times)}"
-        )
+        raise TypeError(f"Expected type of times is list or np.ndarray. Got {type(times)}")
     if not isinstance(elevation_angles, (list, np.ndarray)):
         raise TypeError(
             f"Expected type of elevation_angles is list or np.ndarray. Got {type(elevation_angles)}"
@@ -266,9 +249,7 @@ def extract_visibility_windows_tool(
 
     for time, ele_angle, mask in zip(times, elevation_angles, visible_mask):
         if mask and add_new:
-            visibility_windows.append(
-                {"start": time, "end": time, "max_ele": ele_angle}
-            )
+            visibility_windows.append({"start": time, "end": time, "max_ele": ele_angle})
             add_new = False
         elif mask and not add_new:
             visibility_windows[-1]["end"] = time

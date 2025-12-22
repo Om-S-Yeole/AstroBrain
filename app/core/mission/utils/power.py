@@ -19,7 +19,7 @@ class PowerConfig(TypedDict):
 
 
 class PowerResults(TypedDict):
-    soc: np.ndarray
+    soc: list
     min_soc: float
     power_violation: bool
     final_soc: float
@@ -45,11 +45,7 @@ def compute_power_generation(power_config: PowerConfig) -> float:
         Power generation in watts (W).
     """
     # In watts
-    return (
-        power_config["solar_panel_area_m2"]
-        * power_config["solar_efficiency"]
-        * SOLAR_CONSTANT
-    )
+    return power_config["solar_panel_area_m2"] * power_config["solar_efficiency"] * SOLAR_CONSTANT
 
 
 def compute_power_consumption(power_config: PowerConfig) -> float:
@@ -113,13 +109,9 @@ def propagate_battery_soc(
         If initial_soc is not in the range [0, 1].
     """
     if not isinstance(times, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of times is list or np.ndarray. Got {type(times)}"
-        )
+        raise TypeError(f"Expected type of times is list or np.ndarray. Got {type(times)}")
     if not isinstance(eclipsed, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of eclipsed is list or np.ndarray. Got {type(eclipsed)}"
-        )
+        raise TypeError(f"Expected type of eclipsed is list or np.ndarray. Got {type(eclipsed)}")
     if not 0 <= power_config["initial_soc"] <= 1:
         raise ValueError("initial_soc must be in [0, 1]")
 

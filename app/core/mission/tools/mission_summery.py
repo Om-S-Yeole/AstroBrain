@@ -1,5 +1,3 @@
-from typing import List
-
 from langchain.tools import tool
 from pydantic import BaseModel
 
@@ -100,7 +98,7 @@ def determine_limiting_subsystem_tool(
 @tool(args_schema=GenerateRecommendationsTool)
 def generate_recommendations_tool(
     limiting_subsystem: str,
-) -> List[str]:
+) -> list[str]:
     """
     Generate actionable recommendations to address mission constraints.
 
@@ -321,9 +319,7 @@ def build_mission_summary_tool(
 
     limiting = determine_limiting_subsystem(power, thermal, duty_cycle)
 
-    explanation = generate_explanation(
-        feasible, limiting, power, thermal, duty_cycle, comms
-    )
+    explanation = generate_explanation(feasible, limiting, power, thermal, duty_cycle, comms)
 
     recommendations = generate_recommendations(limiting, payload_config)
 

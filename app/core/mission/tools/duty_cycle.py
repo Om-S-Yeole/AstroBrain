@@ -18,13 +18,13 @@ from app.core.mission.utils.propagator import PropagationResults
 
 class ComputePayloadONTimeSchema(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    times: list | np.ndarray
+    times: list
     duty_cycle: float
 
 
 class CheckSunlightConstraintSchema(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    times: np.ndarray
+    times: list
     eclipse_windows: list[dict]
     duty_cycle: float
 
@@ -73,7 +73,7 @@ def compute_payload_ON_time_tool(times: list | np.ndarray, duty_cycle: float) ->
 
 @tool(args_schema=CheckSunlightConstraintSchema)
 def check_sunlight_constraint_tool(
-    times: np.ndarray,
+    times: list,
     eclipse_windows: list[dict],
     duty_cycle: float,
 ) -> bool:
@@ -110,6 +110,7 @@ def check_sunlight_constraint_tool(
 
     Returns True if available sunlight time ≥ required ON time.
     """
+    times = np.array(times)
     total_mission_time = (max(times) - min(times)).total_seconds()
 
     total_eclipse_time = 0
@@ -248,9 +249,7 @@ def evaluate_duty_cycle_tool(
     - Operations: plan payload scheduling within available resources
     """
     if not 0 <= payload_config["duty_cycle"] <= 1:
-        raise ValueError(
-            f"Duty cycle must be in [0, 1]. Got {payload_config['duty_cycle']}"
-        )
+        raise ValueError(f"Duty cycle must be in [0, 1]. Got {payload_config['duty_cycle']}")
 
     power_feasible = not power_results["power_violation"]
 
@@ -270,9 +269,7 @@ def evaluate_duty_cycle_tool(
     data_downlinked = compute_data_downlinked(communication_results, downlink_rate_Mbps)
 
     downlink_feasible = (
-        True
-        if not payload_config["requires_contact"]
-        else data_generated <= data_downlinked
+        True if not payload_config["requires_contact"] else data_generated <= data_downlinked
     )
 
     overall_feasible = power_feasible and downlink_feasible and sunlight_feasible

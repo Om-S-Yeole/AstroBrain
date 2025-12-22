@@ -1,4 +1,4 @@
-from typing import List, TypedDict
+from typing import TypedDict
 
 from app.core.mission.utils.communication import CommunicationResults
 from app.core.mission.utils.duty_cycle import DutyCycleResults, PayloadConfig
@@ -20,7 +20,7 @@ class MissionSummary(TypedDict):
     limiting_subsystem: str
     key_metrics: KeyMissionMetrics
     explanation: str
-    recommendations: List[str]
+    recommendations: list[str]
 
 
 def determine_limiting_subsystem(
@@ -78,7 +78,7 @@ def determine_limiting_subsystem(
 
 def generate_recommendations(
     limiting_subsystem: str,
-) -> List[str]:
+) -> list[str]:
     """
     Generate actionable recommendations to address mission constraints.
 
@@ -297,9 +297,7 @@ def build_mission_summary(
 
     limiting = determine_limiting_subsystem(power, thermal, duty_cycle)
 
-    explanation = generate_explanation(
-        feasible, limiting, power, thermal, duty_cycle, comms
-    )
+    explanation = generate_explanation(feasible, limiting, power, thermal, duty_cycle, comms)
 
     recommendations = generate_recommendations(limiting, payload_config)
 

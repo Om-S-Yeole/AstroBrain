@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
-from typing import List, Tuple, Union
+from typing import Union
 
-import numpy as np
 from astropy.units import Quantity
 from langchain.tools import tool
 from poliastro.twobody import Orbit
@@ -14,12 +13,12 @@ class Propagate(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
     orbit_source: Union[
         Orbit,
-        Tuple[
-            Union[List, np.ndarray, Quantity],
-            Union[List, np.ndarray, Quantity],
+        tuple[
+            Union[list, Quantity],
+            Union[list, Quantity],
             Union[str, datetime],
         ],
-        Tuple[str, str],
+        tuple[str, str],
     ]
     start_time: str | datetime
     end_time: str | datetime
@@ -30,26 +29,26 @@ class PropagateAt(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
     orbit_source: Union[
         Orbit,  # Poliastro orbit
-        Tuple[
-            Union[List, np.ndarray, Quantity],
-            Union[List, np.ndarray, Quantity],
+        tuple[
+            Union[list, Quantity],
+            Union[list, Quantity],
             Union[str, datetime],
         ],
-        Tuple[str, str],
+        tuple[str, str],
     ]
-    times: List[datetime] | np.ndarray[datetime]
+    times: list[datetime]
 
 
 @tool(args_schema=Propagate)
 def propagate_tool(
     orbit_source: Union[
         Orbit,  # Poliastro orbit
-        Tuple[
-            Union[List, np.ndarray, Quantity],
-            Union[List, np.ndarray, Quantity],
+        tuple[
+            Union[list, Quantity],
+            Union[list, Quantity],
             Union[str, datetime],
         ],  # (r_vec, v_vec, epoch) attractor = Earth always because of propagate function
-        Tuple[str, str],  # TLE (line 1, line 2) always assume earth as the attractor
+        tuple[str, str],  # TLE (line 1, line 2) always assume earth as the attractor
     ],
     start_time: str | datetime,
     end_time: str | datetime,
@@ -96,14 +95,14 @@ def propagate_tool(
 def propagate_at_tool(
     orbit_source: Union[
         Orbit,  # Poliastro orbit
-        Tuple[
-            Union[List, np.ndarray, Quantity],
-            Union[List, np.ndarray, Quantity],
+        tuple[
+            Union[list, Quantity],
+            Union[list, Quantity],
             Union[str, datetime],
         ],  # (r_vec, v_vec, epoch) attractor = Earth always because of propagate function
-        Tuple[str, str],  # TLE (line 1, line 2) always assume earth as the attractor
+        tuple[str, str],  # TLE (line 1, line 2) always assume earth as the attractor
     ],
-    times: List[datetime] | np.ndarray[datetime],
+    times: list[datetime],
 ) -> PropagationResults:
     """
     Propagate the orbit at specific time points.

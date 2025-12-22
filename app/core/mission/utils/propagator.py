@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List, Tuple, TypedDict, Union
+from typing import TypedDict, Union
 
 import numpy as np
 import pytz
@@ -36,12 +36,12 @@ class PropagationResults(TypedDict):
         Altitude above Earth's surface in kilometers.
     """
 
-    time: np.ndarray[datetime]
-    r_eci: np.ndarray[Tuple[float, float, float]]
-    v_eci: np.ndarray[Tuple[float, float, float]]
-    lat: np.ndarray[float]
-    lon: np.ndarray[float]
-    alt: np.ndarray[float]
+    time: list[datetime]
+    r_eci: list[tuple[float, float, float]]
+    v_eci: list[tuple[float, float, float]]
+    lat: list[float]
+    lon: list[float]
+    alt: list[float]
 
 
 class OrbitPropagator:
@@ -79,14 +79,12 @@ class OrbitPropagator:
         self,
         orbit_source: Union[
             Orbit,  # Poliastro orbit
-            Tuple[
-                Union[List, np.ndarray, Quantity],
-                Union[List, np.ndarray, Quantity],
+            tuple[
+                Union[list, np.ndarray, Quantity],
+                Union[list, np.ndarray, Quantity],
                 Union[str, datetime],
             ],  # (r_vec, v_vec, epoch) attractor = Earth always because of propagate function
-            Tuple[
-                str, str
-            ],  # TLE (line 1, line 2) always assume earth as the attractor
+            tuple[str, str],  # TLE (line 1, line 2) always assume earth as the attractor
         ],
     ):
         self.orbit: Orbit = self._normalize_orbit_source(orbit_source)
@@ -134,13 +132,9 @@ class OrbitPropagator:
                 f"Expected type of start_time is str or datetime. Got {type(start_time)}"
             )
         if not isinstance(end_time, (str, datetime)):
-            raise TypeError(
-                f"Expected type of end_time is str or datetime. Got {type(end_time)}"
-            )
+            raise TypeError(f"Expected type of end_time is str or datetime. Got {type(end_time)}")
         if not isinstance(step, (int, float, timedelta)):
-            raise TypeError(
-                f"Expected type of step is int or float or timedelta. Got {type(step)}"
-            )
+            raise TypeError(f"Expected type of step is int or float or timedelta. Got {type(step)}")
 
         propagation_results = {
             "time": self._build_time_grid(start_time, end_time, step),
@@ -164,15 +158,11 @@ class OrbitPropagator:
             propagation_results["lon"].append(lon)
             propagation_results["alt"].append(alt)
 
-        propagation_results = {
-            key: np.array(value) for key, value in propagation_results.items()
-        }
+        propagation_results = {key: np.array(value) for key, value in propagation_results.items()}
 
         return propagation_results
 
-    def propagate_at(
-        self, times: List[datetime] | np.ndarray[datetime]
-    ) -> PropagationResults:
+    def propagate_at(self, times: list[datetime] | np.ndarray[datetime]) -> PropagationResults:
         """
         Propagate the orbit at specific time points.
 
@@ -197,9 +187,7 @@ class OrbitPropagator:
         >>> print(results['r_eci'])
         """
         if not isinstance(times, (list, np.ndarray)):
-            raise TypeError(
-                f"Expected type of times is list or np.ndarray. Got {type(times)}"
-            )
+            raise TypeError(f"Expected type of times is list or np.ndarray. Got {type(times)}")
         for id, time in enumerate(times):
             times[id] = time.replace(tzinfo=pytz.utc)
 
@@ -225,9 +213,7 @@ class OrbitPropagator:
             propagation_results["lon"].append(lon)
             propagation_results["alt"].append(alt)
 
-        propagation_results = {
-            key: np.array(value) for key, value in propagation_results.items()
-        }
+        propagation_results = {key: np.array(value) for key, value in propagation_results.items()}
 
         return propagation_results
 

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 from langchain.chat_models import BaseChatModel
 from langchain.messages import HumanMessage, SystemMessage
@@ -30,10 +30,10 @@ class UnderstandResFormat(BaseModel):
         is "toClarify". Defaults to empty string.
     """
 
-    understood_request: List[TaskDescription] = Field(
+    understood_request: list[TaskDescription] = Field(
         ..., description="Specific tasks that can be extracted from user's query"
     )
-    user_passed_params: Dict[str, Any] = Field(
+    user_passed_params: dict[str, Any] = Field(
         default_factory=dict,
         description="If any specific parameter with values are given in user query, then those will be inserted here as dict",
     )
@@ -134,6 +134,9 @@ def understand(state: MissionOpsState, config: RunnableConfig):
     - Ask ONE precise clarification question.
     - The question must directly unblock execution.
     - Do NOT ask multiple questions.
+    - You are REQUIRED to ask the question if you set request_action as "toClarify".
+
+    5. You are also provided with list of user clarifications made so far by the user. Make use of those user clarifications.
 
     ------------------------
     STRICT RULES

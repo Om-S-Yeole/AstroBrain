@@ -23,12 +23,12 @@ class ComputeVisibilityForStationToolSchema(BaseModel):
 
 class ComputeContactDurationFromWindowsToolSchema(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    windows: list | np.ndarray
+    windows: list
 
 
 class ComputePassesToolSchema(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    windows: list | np.ndarray
+    windows: list
 
 
 class AggregateGroundStationsToolSchema(BaseModel):
@@ -397,8 +397,6 @@ def compute_communication_tool(
     station_results = []
 
     for ground_station in ground_stations:
-        station_results.append(
-            compute_visibility_for_station(propagation_results, ground_station)
-        )
+        station_results.append(compute_visibility_for_station(propagation_results, ground_station))
 
     return aggregate_ground_stations(station_results)

@@ -30,9 +30,7 @@ class LLMFinalResponse(BaseModel):
         ...,
         description="If response status is 'denied' or 'error', then this field denotes the reason for that. Otherwise 'success'",
     )
-    message: str = Field(
-        ..., description="Final formatted message (response) given to the user"
-    )
+    message: str = Field(..., description="Final formatted message (response) given to the user")
 
 
 def draft_final_response(state: MissionOpsState, config: RunnableConfig):
@@ -135,6 +133,7 @@ WHAT YOU MUST DO
    - Summarize key findings and conclusions.
    - Mention important assumptions explicitly if they exist.
    - Include relevant warnings, if any, without exaggeration.
+   - Message must be in detail.
 
 ------------------------
 STRICT RULES

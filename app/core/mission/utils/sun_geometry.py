@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Tuple, TypedDict
+from typing import TypedDict
 
 import numpy as np
 import pytz
@@ -15,7 +15,7 @@ class SunGeometryResults(TypedDict):
     beta_deg: list
 
 
-def sun_vector_gcrs(time: datetime | Time) -> Tuple:
+def sun_vector_gcrs(time: datetime | Time) -> tuple:
     """
     Compute the Sun position vector in GCRS (Geocentric Celestial Reference System) coordinates.
 
@@ -45,9 +45,7 @@ def sun_vector_gcrs(time: datetime | Time) -> Tuple:
     return (cart.x.to(u.km).value, cart.y.to(u.km).value, cart.z.to(u.km).value)
 
 
-def orbit_unit_normal_vector(
-    r_eci: list | np.ndarray, v_eci: list | np.ndarray
-) -> np.ndarray:
+def orbit_unit_normal_vector(r_eci: list | np.ndarray, v_eci: list | np.ndarray) -> np.ndarray:
     """
     Calculate the unit normal vector to the orbital plane.
 
@@ -72,13 +70,9 @@ def orbit_unit_normal_vector(
         If r_eci or v_eci are not list or numpy arrays.
     """
     if not isinstance(r_eci, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}"
-        )
+        raise TypeError(f"Expected type of r_eci is list or np.ndarray. Got {type(r_eci)}")
     if not isinstance(v_eci, (list, np.ndarray)):
-        raise TypeError(
-            f"Expected type of v_eci is list or np.ndarray. Got {type(v_eci)}"
-        )
+        raise TypeError(f"Expected type of v_eci is list or np.ndarray. Got {type(v_eci)}")
 
     r_eci = np.array(r_eci)
     v_eci = np.array(v_eci)
@@ -87,9 +81,7 @@ def orbit_unit_normal_vector(
     return h / np.linalg.norm(h)
 
 
-def beta_angle(
-    r_eci: list | np.ndarray, v_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray
-):
+def beta_angle(r_eci: list | np.ndarray, v_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray):
     """
     Calculate the beta angle for a spacecraft orbit.
 
@@ -114,9 +106,7 @@ def beta_angle(
     sun_vec_eci = np.array(sun_vec_eci)
     return np.rad2deg(
         np.arcsin(
-            orbit_unit_normal_vector(r_eci, v_eci)
-            @ sun_vec_eci
-            / np.linalg.norm(sun_vec_eci)
+            orbit_unit_normal_vector(r_eci, v_eci) @ sun_vec_eci / np.linalg.norm(sun_vec_eci)
         )
     )
 
