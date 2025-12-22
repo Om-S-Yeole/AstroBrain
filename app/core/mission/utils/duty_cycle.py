@@ -2,10 +2,10 @@ from typing import TypedDict
 
 import numpy as np
 
-from app.core.mission.communication import CommunicationResults
-from app.core.mission.eclipse import EclipseResults
-from app.core.mission.power import PowerResults
-from app.core.mission.propagator import PropagationResults
+from app.core.mission.utils.communication import CommunicationResults
+from app.core.mission.utils.eclipse import EclipseResults
+from app.core.mission.utils.power import PowerResults
+from app.core.mission.utils.propagator import PropagationResults
 
 
 class PayloadConfig(TypedDict):
@@ -143,7 +143,7 @@ def evaluate_duty_cycle(
     communication_results: CommunicationResults,
     payload_config: PayloadConfig,
     downlink_rate_Mbps: float,
-) -> dict:
+) -> DutyCycleResults:
     """
     Evaluate the feasibility of a payload duty cycle considering all mission constraints.
 

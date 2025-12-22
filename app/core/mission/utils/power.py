@@ -3,8 +3,8 @@ from typing import TypedDict
 import numpy as np
 import pytz
 
-from app.core.mission.eclipse import EclipseResults
-from app.core.mission.propagator import PropagationResults
+from app.core.mission.utils.eclipse import EclipseResults
+from app.core.mission.utils.propagator import PropagationResults
 
 SOLAR_CONSTANT = 1361  # W / m^2
 

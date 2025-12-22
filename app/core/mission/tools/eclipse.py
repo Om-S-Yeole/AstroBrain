@@ -1,21 +1,47 @@
 from datetime import datetime
-from typing import TypedDict
 
 import numpy as np
 import pytz
+from langchain.tools import tool
 from poliastro.constants import R_earth
+from pydantic import BaseModel
 
-from app.core.mission.propagator import PropagationResults
-from app.core.mission.sun_geometry import SunGeometryResults
+from app.core.mission.utils.eclipse import (
+    EclipseResults,
+    extract_eclipse_windows,
+    is_in_umbra,
+    umbra_mask,
+)
+from app.core.mission.utils.propagator import PropagationResults
+from app.core.mission.utils.sun_geometry import SunGeometryResults
 
 
-class EclipseResults(TypedDict):
-    eclipsed: np.ndarray[bool]
-    windows: list[dict]
-    fraction_in_eclipse: float
+class IsInUmbraToolSchema(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    r_eci: list | np.ndarray
+    sun_vec_eci: list | np.ndarray
 
 
-def is_in_umbra(
+class UmbraMaskToolSchema(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    r_eci: list | np.ndarray
+    sun_vec_eci: list | np.ndarray
+
+
+class ExtractEclipseWindowsToolSchema(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    times: list[datetime] | np.ndarray[datetime]
+    eclipse_mask: list[bool] | np.ndarray[bool]
+
+
+class ComputeEclipseSchema(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    propagation_results: PropagationResults
+    sun_geometry: SunGeometryResults
+
+
+@tool(args_schema=IsInUmbraToolSchema)
+def is_in_umbra_tool(
     r_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray
 ) -> bool:  # We do not assuem that unit vectors are passed
     """
@@ -61,7 +87,8 @@ def is_in_umbra(
     return r_parallel < 0 and r_perp < R_earth.value / 1000
 
 
-def umbra_mask(r_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray):
+@tool(args_schema=UmbraMaskToolSchema)
+def umbra_mask_tool(r_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray):
     """
     Generate a boolean mask indicating eclipse status for multiple positions.
 
@@ -105,7 +132,8 @@ def umbra_mask(r_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray):
     return np.array(mask)
 
 
-def extract_eclipse_windows(
+@tool(args_schema=ExtractEclipseWindowsToolSchema)
+def extract_eclipse_windows_tool(
     times: list[datetime] | np.ndarray[datetime],
     eclipse_mask: list[bool] | np.ndarray[bool],
 ) -> list[dict]:
@@ -163,7 +191,8 @@ def extract_eclipse_windows(
     return eclipse_windows
 
 
-def compute_eclipse(
+@tool(args_schema=ComputeEclipseSchema)
+def compute_eclipse_tool(
     propagation_results: PropagationResults, sun_geometry: SunGeometryResults
 ) -> EclipseResults:
     """

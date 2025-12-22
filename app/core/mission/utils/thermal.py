@@ -4,10 +4,10 @@ import numpy as np
 import pytz
 from scipy.constants import Stefan_Boltzmann
 
-from app.core.mission.eclipse import EclipseResults
-from app.core.mission.power import PowerConfig
-from app.core.mission.propagator import PropagationResults
-from app.core.mission.sun_geometry import SunGeometryResults
+from app.core.mission.utils.eclipse import EclipseResults
+from app.core.mission.utils.power import PowerConfig
+from app.core.mission.utils.propagator import PropagationResults
+from app.core.mission.utils.sun_geometry import SunGeometryResults
 
 SOLAR_CONSTANT = 1361  # W / m^2
 
@@ -306,7 +306,7 @@ def compute_thermal(
     sun_geometry: SunGeometryResults,
     power_config: PowerConfig,
     thermal_config: ThermalConfig,
-) -> dict:
+) -> ThermalResults:
     """
     Perform complete thermal analysis for a spacecraft mission.
 

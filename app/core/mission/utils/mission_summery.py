@@ -1,9 +1,9 @@
 from typing import List, TypedDict
 
-from app.core.mission.communication import CommunicationResults
-from app.core.mission.duty_cycle import DutyCycleResults, PayloadConfig
-from app.core.mission.power import PowerResults
-from app.core.mission.thermal import ThermalResults
+from app.core.mission.utils.communication import CommunicationResults
+from app.core.mission.utils.duty_cycle import DutyCycleResults, PayloadConfig
+from app.core.mission.utils.power import PowerResults
+from app.core.mission.utils.thermal import ThermalResults
 
 
 class KeyMissionMetrics(TypedDict):

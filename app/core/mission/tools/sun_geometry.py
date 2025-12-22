@@ -1,21 +1,48 @@
 from datetime import datetime
-from typing import Tuple, TypedDict
+from typing import Tuple
 
 import numpy as np
 import pytz
 from astropy import units as u
 from astropy.coordinates import get_sun
 from astropy.time import Time
+from langchain.tools import tool
+from pydantic import BaseModel
 
-from app.core.mission.propagator import PropagationResults
+from app.core.mission.utils.propagator import PropagationResults
+from app.core.mission.utils.sun_geometry import (
+    SunGeometryResults,
+    beta_angle,
+    orbit_unit_normal_vector,
+    sun_vector_gcrs,
+)
 
 
-class SunGeometryResults(TypedDict):
-    sun_vec_eci: list
-    beta_deg: list
+class SunVectorGcrsTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    time: datetime | Time
 
 
-def sun_vector_gcrs(time: datetime | Time) -> Tuple:
+class OrbitUnitNormalVectorTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    r_eci: list | np.ndarray
+    v_eci: list | np.ndarray
+
+
+class BetaAngleTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    r_eci: list | np.ndarray
+    v_eci: list | np.ndarray
+    sun_vec_eci: list | np.ndarray
+
+
+class ComputeSunGeometryTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    propagation_results: PropagationResults
+
+
+@tool(args_schema=SunVectorGcrsTool)
+def sun_vector_gcrs_tool(time: datetime | Time) -> Tuple:
     """
     Compute the Sun position vector in GCRS (Geocentric Celestial Reference System) coordinates.
 
@@ -45,7 +72,8 @@ def sun_vector_gcrs(time: datetime | Time) -> Tuple:
     return (cart.x.to(u.km).value, cart.y.to(u.km).value, cart.z.to(u.km).value)
 
 
-def orbit_unit_normal_vector(
+@tool(args_schema=OrbitUnitNormalVectorTool)
+def orbit_unit_normal_vector_tool(
     r_eci: list | np.ndarray, v_eci: list | np.ndarray
 ) -> np.ndarray:
     """
@@ -87,7 +115,8 @@ def orbit_unit_normal_vector(
     return h / np.linalg.norm(h)
 
 
-def beta_angle(
+@tool(args_schema=BetaAngleTool)
+def beta_angle_tool(
     r_eci: list | np.ndarray, v_eci: list | np.ndarray, sun_vec_eci: list | np.ndarray
 ):
     """
@@ -121,7 +150,10 @@ def beta_angle(
     )
 
 
-def compute_sun_geometry(propagation_results: PropagationResults) -> SunGeometryResults:
+@tool(args_schema=ComputeSunGeometryTool)
+def compute_sun_geometry_tool(
+    propagation_results: PropagationResults,
+) -> SunGeometryResults:
     """
     Compute Sun geometry parameters for an entire propagated orbit.
 

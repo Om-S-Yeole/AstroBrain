@@ -6,13 +6,25 @@ from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langgraph.types import Command
 
-from app.orbitqa.graph import build_graph
-from app.orbitqa.state import FinalResponse
-from app.orbitqa.tool_factory import TOOL_REGISTRY
+from app.missionops.graph import build_graph
+from app.missionops.state import FinalResponse
+from app.missionops.tool_factory import (
+    BASE_TOOL_REGISTRY,
+    COMMUNICATION_TOOL_REGISTRY,
+    DUTY_CYCLE_TOOL_REGISTRY,
+    ECLIPSE_TOOL_REGISTRY,
+    POWER_TOOL_REGISTRY,
+    PROPAGATOR_TOOL_REGISTRY,
+    SUN_GEOMETRY_TOOL_REGISTRY,
+    THERMAL_TOOL_REGISTRY,
+    VISIBILITY_TOOL_REGISTRY,
+    ALL_TOOL_REGISTRY,
+    MISSION_SUMMARY_TOOL_REGISTRY,
+)
 from app.rag import VectorStore
 
 
-class OrbitQARes(TypedDict):
+class MissionOpsRes(TypedDict):
     isInterrupted: bool
     clarification_limit_exceeded: bool
     interrupt_message: str
@@ -42,20 +54,44 @@ vectorstore = VectorStore(
 
 model_config_per_node = {
     "understand": {
-        "model": os.getenv("understad_model_name_orbitqa"),
-        "temperature": float(os.getenv("understand_model_temp_orbitqa")),
+        "model": os.getenv("understand_model_name_missionops"),
+        "temperature": float(os.getenv("understand_model_temp_missionops")),
     },
     "retrieve": {
-        "model": os.getenv("retrieve_model_name_orbitqa"),
-        "temperature": float(os.getenv("retrieve_model_temp_orbitqa")),
+        "model": os.getenv("retrieve_model_name_missionops"),
+        "temperature": float(os.getenv("retrieve_model_temp_missionops")),
     },
-    "tool_selector": {
-        "model": os.getenv("tool_selector_model_name_orbitqa"),
-        "temperature": float(os.getenv("tool_selector_model_temp_orbitqa")),
+    "re_evaluate": {
+        "model": os.getenv("re_evaluate_model_name_missionops"),
+        "temperature": float(os.getenv("re_evaluate_model_temp_missionops")),
+    },
+    "orbit_propagator_visibility": {
+        "model": os.getenv("orbit_propagator_visibility_model_name_missionops"),
+        "temperature": float(
+            os.getenv("orbit_propagator_visibility_model_temp_missionops")
+        ),
+    },
+    "sun_eclipse": {
+        "model": os.getenv("sun_eclipse_model_name_missionops"),
+        "temperature": float(os.getenv("sun_eclipse_model_temp_missionops")),
+    },
+    "power_comm_thermal_duty": {
+        "model": os.getenv("power_comm_thermal_duty_model_name_missionops"),
+        "temperature": float(
+            os.getenv("power_comm_thermal_duty_model_temp_missionops")
+        ),
+    },
+    "mission_summary": {
+        "model": os.getenv("mission_summary_model_name_missionops"),
+        "temperature": float(os.getenv("mission_summary_model_temp_missionops")),
+    },
+    "validator": {
+        "model": os.getenv("validator_model_name_missionops"),
+        "temperature": float(os.getenv("validator_model_temp_missionops")),
     },
     "draft_final_response": {
-        "model": os.getenv("draft_final_response_model_name_orbitqa"),
-        "temperature": float(os.getenv("draft_final_response_model_temp_orbitqa")),
+        "model": os.getenv("draft_final_response_model_name_missionops"),
+        "temperature": float(os.getenv("draft_final_response_model_temp_missionops")),
     },
 }
 
@@ -69,23 +105,41 @@ config = {
     "configurable": {
         "understand_model": models_per_nodes["understand"],
         "retrieve_model": models_per_nodes["retrieve"],
+        "re_evaluate_model": models_per_nodes["re_evaluate"],
+        "orbit_propagator_visibility_model": models_per_nodes[
+            "orbit_propagator_visibility"
+        ].bind_tools(
+            BASE_TOOL_REGISTRY + PROPAGATOR_TOOL_REGISTRY + VISIBILITY_TOOL_REGISTRY
+        ),
+        "sun_eclipse_model": models_per_nodes["sun_eclipse"].bind_tools(
+            BASE_TOOL_REGISTRY + SUN_GEOMETRY_TOOL_REGISTRY + ECLIPSE_TOOL_REGISTRY
+        ),
+        "power_comm_thermal_duty_model": models_per_nodes[
+            "power_comm_thermal_duty"
+        ].bind_tools(
+            BASE_TOOL_REGISTRY
+            + POWER_TOOL_REGISTRY
+            + COMMUNICATION_TOOL_REGISTRY
+            + THERMAL_TOOL_REGISTRY
+            + DUTY_CYCLE_TOOL_REGISTRY
+        ),
+        "mission_summary_model": models_per_nodes["mission_summary"].bind_tools(
+            BASE_TOOL_REGISTRY + MISSION_SUMMARY_TOOL_REGISTRY
+        ),
+        "validator_model": models_per_nodes["validator"],
+        "final_response_model": models_per_nodes["draft_final_response"],
         "vectorstore": vectorstore,
         "top_k": 7,
-        "tool_registry": TOOL_REGISTRY,
-        "tool_selector_model": models_per_nodes["tool_selector"].bind_tools(
-            TOOL_REGISTRY
-        ),
-        "final_response_model": models_per_nodes["draft_final_response"],
+        "tool_registry": ALL_TOOL_REGISTRY,
     }
 }
 
 # ---------------------------------------------------------
 
-
 # -------- For CLI testing purposes ----------------
 
 
-async def get_user_clarification_cli(thread_id: str, res: OrbitQARes):
+async def get_user_clarification_cli(thread_id: str, res: MissionOpsRes):
     clarification = input(f"{res['interrupt_message']} ")
 
     return clarification
@@ -94,7 +148,7 @@ async def get_user_clarification_cli(thread_id: str, res: OrbitQARes):
 # --------------------------------------------------
 
 
-async def main(thread_id: str, user_req: str) -> OrbitQARes:
+async def main(thread_id: str, user_req: str) -> MissionOpsRes:
     # We will use UUID. We expect frontend to pass this id unique per user
     request_config = {
         "configurable": {
@@ -142,7 +196,6 @@ async def main(thread_id: str, user_req: str) -> OrbitQARes:
                     "status": "error",
                     "reason": "SESSION_TIMEOUT",
                     "message": "Session expired due to inactivity.",
-                    "plots": [],
                     "warnings": [],
                 },
             }

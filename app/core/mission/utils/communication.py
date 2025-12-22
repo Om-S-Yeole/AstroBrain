@@ -3,8 +3,8 @@ from typing import TypedDict
 
 import numpy as np
 
-from app.core.mission.propagator import PropagationResults
-from app.core.mission.visibility import compute_visibility
+from app.core.mission.utils.propagator import PropagationResults
+from app.core.mission.utils.visibility import compute_visibility
 
 
 class GroundStationConfig(TypedDict):

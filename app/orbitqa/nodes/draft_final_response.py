@@ -26,7 +26,7 @@ class LLMFinalResponse(BaseModel):
         - "error": Request failed due to technical or execution errors
     reason : str
         Explanation for the status:
-        - For "success" status: Must be "SUCCESS"
+        - For "success" status: Must be "success"
         - For "denied" status: Brief explanation of why request was denied
         - For "error" status: High-level description of what failed
     message : str
@@ -42,7 +42,7 @@ class LLMFinalResponse(BaseModel):
     Success response:
     >>> response = LLMFinalResponse(
     ...     status="success",
-    ...     reason="SUCCESS",
+    ...     reason="success",
     ...     message="The Hohmann transfer from 7000 km to 42164 km requires a total delta-v of 3.9 km/s. The transfer time is approximately 5.28 hours."
     ... )
 
@@ -78,7 +78,7 @@ class LLMFinalResponse(BaseModel):
     )
     reason: str = Field(
         ...,
-        description="If response status is 'denied' or 'error', then this field denotes the reason for that. Otherwise 'SUCCESS'",
+        description="If response status is 'denied' or 'error', then this field denotes the reason for that. Otherwise 'success'",
     )
     message: str = Field(
         ..., description="Final formatted message (response) given to the user"
@@ -135,7 +135,7 @@ def draft_final_response(state: OrbitQAState, config: RunnableConfig):
         - status : str
             One of "success", "denied", or "error".
         - reason : str
-            Explanation for the status ("SUCCESS" for successful requests).
+            Explanation for the status ("success" for successful requests).
         - message : str
             The complete, formatted user-facing response.
         - plots : list of PlotOutput

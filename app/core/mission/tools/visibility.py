@@ -1,50 +1,63 @@
 from datetime import datetime
-from typing import Dict, List, TypedDict
+from typing import List
 
 import numpy as np
 from astropy.coordinates import EarthLocation
+from langchain.tools import tool
+from pydantic import BaseModel
 
-from app.core.mission.propagator import PropagationResults
+from app.core.mission.utils.propagator import PropagationResults
+from app.core.mission.utils.visibility import (
+    GroundStationConfigVisibility,
+    VisibilityResults,
+    compute_elevation_angle,
+    ecef_from_lat_lon_alt,
+    extract_visibility_windows,
+    visibility_mask,
+)
 from app.core.utils import rad2deg
 
 
-class GroundStationConfigVisibility(TypedDict):
-    """Configuration for a ground station location.
+class ComputeElevationAngleTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    sat_ecef: list | np.ndarray
+    gs_ecef: list | np.ndarray
 
-    Attributes
-    ----------
-    gs_lat : float
-        Ground station latitude in degrees.
-    gs_lon : float
-        Ground station longitude in degrees.
-    gs_alt : float
-        Ground station altitude in meters.
-    """
 
+class EcefFromLatLonAltTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    lat: float
+    lon: float
+    alt: float
+
+
+class VisibilityMaskTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    sat_lat: List[float] | np.ndarray[float]
+    sat_lon: List[float] | np.ndarray[float]
+    sat_alt: List[float] | np.ndarray[float]
     gs_lat: float
     gs_lon: float
     gs_alt: float
+    min_elevation_deg: int | float = 10.0
 
 
-class VisibilityResults(TypedDict):
-    """Results from visibility computation.
-
-    Attributes
-    ----------
-    elevation_deg : np.ndarray
-        Elevation angles in degrees for each time step.
-    visible : np.ndarray
-        Boolean mask indicating visibility at each time step.
-    windows : List[Dict]
-        List of visibility windows with start, end, and maximum elevation.
-    """
-
-    elevation_deg: np.ndarray
-    visible: np.ndarray
-    windows: List[Dict]
+class ExtractVisibilityWindowsTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    times: List[datetime] | np.ndarray
+    elevation_angles: List[float] | np.ndarray
+    visible_mask: List[bool] | np.ndarray
 
 
-def compute_elevation_angle(
+class ComputeVisibilityTool(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    propagation_results: PropagationResults
+    ground_station: GroundStationConfigVisibility
+    min_elevation_deg: int | float = 10.0
+
+
+@tool(args_schema=ComputeElevationAngleTool)
+def compute_elevation_angle_tool(
     sat_ecef: list | np.ndarray, gs_ecef: list | np.ndarray
 ) -> float:
     """Compute elevation angle of satellite from ground station.
@@ -85,7 +98,8 @@ def compute_elevation_angle(
     return rad2deg(np.arcsin((line_of_sight_vector @ gs_unit_vector) / los_norm))
 
 
-def ecef_from_lat_lon_alt(lat: float, lon: float, alt: float) -> np.ndarray[float]:
+@tool(args_schema=EcefFromLatLonAltTool)
+def ecef_from_lat_lon_alt_tool(lat: float, lon: float, alt: float) -> np.ndarray[float]:
     """Convert geodetic coordinates to ECEF coordinates.
 
     Parameters
@@ -118,7 +132,8 @@ def ecef_from_lat_lon_alt(lat: float, lon: float, alt: float) -> np.ndarray[floa
     return np.array([earthloc.x.value, earthloc.y.value, earthloc.z.value])
 
 
-def visibility_mask(
+@tool(args_schema=VisibilityMaskTool)
+def visibility_mask_tool(
     sat_lat: List[float] | np.ndarray[float],
     sat_lon: List[float] | np.ndarray[float],
     sat_alt: List[float] | np.ndarray[float],
@@ -205,7 +220,8 @@ def visibility_mask(
     return elevation_angles, mask
 
 
-def extract_visibility_windows(
+@tool(args_schema=ExtractVisibilityWindowsTool)
+def extract_visibility_windows_tool(
     times: List[datetime] | np.ndarray,
     elevation_angles: List[float] | np.ndarray,
     visible_mask: List[bool] | np.ndarray,
@@ -267,7 +283,8 @@ def extract_visibility_windows(
     return visibility_windows
 
 
-def compute_visibility(
+@tool(args_schema=ComputeVisibilityTool)
+def compute_visibility_tool(
     propagation_results: PropagationResults,
     ground_station: GroundStationConfigVisibility,
     min_elevation_deg: int | float = 10.0,
