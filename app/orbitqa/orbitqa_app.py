@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
@@ -8,7 +8,7 @@ from langgraph.types import Command
 
 from app.orbitqa.graph import build_graph
 from app.orbitqa.state import FinalResponse
-from app.orbitqa.tool_factory import TOOL_REGISTRY
+from app.orbitqa.tool_factory import TOOL_REGISTRY, TOOL_REGISTRY_LIST
 from app.rag import VectorStore
 
 
@@ -16,7 +16,7 @@ class OrbitQARes(TypedDict):
     isInterrupted: bool
     clarification_limit_exceeded: bool
     interrupt_message: str
-    final_response: Optional[FinalResponse]
+    final_response: FinalResponse | None
 
 
 # --------- Globally shared resources ------------
@@ -35,14 +35,12 @@ vectorstore = VectorStore(
     hf_device=os.getenv("hf_device"),
     cloud=os.getenv("cloud"),
     region=os.getenv("region"),
-    index_deletion_protection=(
-        True if os.getenv("index_deletion_protection") == "True" else False
-    ),
+    index_deletion_protection=(True if os.getenv("index_deletion_protection") == "True" else False),
 )
 
 model_config_per_node = {
     "understand": {
-        "model": os.getenv("understad_model_name_orbitqa"),
+        "model": os.getenv("understand_model_name_orbitqa"),
         "temperature": float(os.getenv("understand_model_temp_orbitqa")),
     },
     "retrieve": {
@@ -59,9 +57,7 @@ model_config_per_node = {
     },
 }
 
-models_per_nodes = {
-    key: ChatOllama(**value) for key, value in model_config_per_node.items()
-}
+models_per_nodes = {key: ChatOllama(**value) for key, value in model_config_per_node.items()}
 
 graph = build_graph()
 
@@ -72,9 +68,7 @@ config = {
         "vectorstore": vectorstore,
         "top_k": 7,
         "tool_registry": TOOL_REGISTRY,
-        "tool_selector_model": models_per_nodes["tool_selector"].bind_tools(
-            TOOL_REGISTRY
-        ),
+        "tool_selector_model": models_per_nodes["tool_selector"].bind_tools(TOOL_REGISTRY_LIST),
         "final_response_model": models_per_nodes["draft_final_response"],
     }
 }
@@ -103,9 +97,7 @@ async def main(thread_id: str, user_req: str) -> OrbitQARes:
         }
     }
 
-    result = await asyncio.to_thread(
-        graph.invoke, {"user_query": user_req}, request_config
-    )
+    result = await asyncio.to_thread(graph.invoke, {"user_query": user_req}, request_config)
 
     num_clarifications = 0
     CLARIFICATION_LIMIT = 5
@@ -133,6 +125,7 @@ async def main(thread_id: str, user_req: str) -> OrbitQARes:
             user_clarification = await asyncio.wait_for(
                 get_user_clarification_cli(thread_id=thread_id, res=res), timeout=600
             )
+            user_clarification = f"{msg}: User answer to the question: {user_clarification}"
         except asyncio.TimeoutError:
             return {
                 "isInterrupted": False,

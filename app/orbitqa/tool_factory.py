@@ -1,6 +1,6 @@
 from app.core import *
 
-TOOL_REGISTRY = [
+TOOL_REGISTRY_LIST = [
     body_from_str_tool,
     cross_tool,
     datetime_from_times_tool,
@@ -36,3 +36,43 @@ TOOL_REGISTRY = [
     plot_transfer,
     plot_altitude_vs_time,
 ]
+
+TOOL_REGISTRY = {
+    tool.name: tool
+    for tool in [
+        body_from_str_tool,
+        cross_tool,
+        datetime_from_times_tool,
+        datetime_to_jd_tool,
+        deg2rad_tool,
+        dot_tool,
+        jd_to_datetime_tool,
+        non_quantity_to_Quantity_tool,
+        norm_tool,
+        rad2deg_tool,
+        rotation_matrix_from_ECI_to_perifocal_tool,
+        rotation_matrix_from_perifocal_to_ECI_tool,
+        unit_vec_tool,
+        uuid_generator_tool,
+        keplerian_to_cartesian,
+        cartesian_to_keplerian,
+        hohmann_transfer,
+        hohmann_time_of_flight,
+        bielliptic_transfer,
+        plane_change,
+        lambert_solver,
+        universal_kepler,
+        sgp4_propagate_tool,
+        orbit_period,
+        mean_motion,
+        specific_energy,
+        specific_angular_momentum,
+        eccentricity_vector,
+        true_anomaly_from_vectors,
+        raan_from_vectors,
+        argument_of_periapsis,
+        plot_orbit_3d,
+        plot_transfer,
+        plot_altitude_vs_time,
+    ]
+}

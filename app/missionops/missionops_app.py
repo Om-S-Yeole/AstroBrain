@@ -173,6 +173,7 @@ async def main(thread_id: str, user_req: str) -> MissionOpsRes:
             user_clarification = await asyncio.wait_for(
                 get_user_clarification_cli(thread_id=thread_id, res=res), timeout=600
             )
+            user_clarification = f"{msg}: User answer to the question: {user_clarification}"
         except asyncio.TimeoutError:
             return {
                 "isInterrupted": False,
