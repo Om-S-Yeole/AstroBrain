@@ -31,13 +31,10 @@ def clarify(state: MissionOpsState):
     user_input = interrupt(
         state["to_ask"]
         if state["to_ask"]
-        else "Your request is unclear. Please provide more clarification:"
+        else "Your request is unclear. Please provide more clarification"
     )
 
     return Command(
-        update={
-            "user_clarifications": state["user_clarifications"]
-            + [str(user_input).strip()]
-        },
+        update={"user_clarifications": state["user_clarifications"] + [str(user_input).strip()]},
         goto="understand",
     )

@@ -112,7 +112,7 @@ async def main(thread_id: str, user_req: str) -> OrbitQARes:
             }
 
         # The interrupt message for user
-        msg = result["__interrupt__"]
+        msg = result["__interrupt__"][0].value
         res = {
             "isInterrupted": True,
             "clarification_limit_exceeded": False,

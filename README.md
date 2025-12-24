@@ -371,7 +371,7 @@ missionops      # Direct MissionOps access
 
 ---
 
-## 🚀 **Quick Start**
+
 
 ### **Prerequisites**
 - Python 3.12
@@ -437,7 +437,73 @@ astrobrain
 # Direct agent access
 orbitqa
 missionops
+
+# WebSocket server for real-time communication
+python -m app.websocket_server
 ```
+
+### **WebSocket Support** 🔌
+
+**Real-Time Bidirectional Communication:**
+
+AstroBrain now supports WebSocket connections for real-time agent interactions with interrupt handling for clarifications.
+
+```bash
+# Start the WebSocket server
+python -m app.websocket_server
+
+# Server starts on ws://localhost:8000 by default
+# Configure host/port via .env:
+WS_HOST=0.0.0.0
+WS_PORT=8000
+```
+
+**Key Features:**
+- ✅ **Real-time messaging**: Instant query processing and responses
+- ✅ **Interrupt handling**: Agent can request clarifications mid-processing
+- ✅ **Session management**: Thread-based conversation tracking
+- ✅ **Keep-alive support**: Automatic connection health monitoring
+- ✅ **Error handling**: Graceful timeout and error recovery
+
+**Quick Example (Python Client):**
+```python
+import asyncio
+import json
+import uuid
+import websockets
+
+async def query_astrobrain():
+    thread_id = str(uuid.uuid4())
+    uri = f"ws://localhost:8000/ws/{thread_id}"
+    
+    async with websockets.connect(uri) as ws:
+        # Send query (agent auto-selected by router)
+        await ws.send(json.dumps({
+            "type": "query",
+            "message": "Calculate orbital period at 400km altitude"
+        }))
+        
+        # Handle responses
+        while True:
+            response = json.loads(await ws.recv())
+            
+            if response["type"] == "clarification_request":
+                # Agent needs more info
+                await ws.send(json.dumps({
+                    "type": "clarification",
+                    "message": "Your answer here"
+                }))
+            elif response["type"] == "response":
+                print(response["data"])
+                break
+
+asyncio.run(query_astrobrain())
+```
+
+**Browser Client:**
+- Open `app/websocket_client.html` in your browser for a fully-featured web interface
+
+📖 **See [QUICKSTART_WS.md](QUICKSTART_WS.md) for complete WebSocket documentation**
 
 ---
 
