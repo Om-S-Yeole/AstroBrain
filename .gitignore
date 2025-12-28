@@ -4,6 +4,7 @@ venv/
 
 # Environment variables
 *.env
+!.env.example
 
 # Cache files
 __pycache__/
